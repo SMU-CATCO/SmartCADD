@@ -1,0 +1,38 @@
+[tool.poetry]
+name = "eli-project-template"
+version = "0.1.0"
+description = "Template for creating well-structured and reproducible machine learning projects."
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: MIT License",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+]
+authors = ["Eli Laird <elilaird3@gmail.com"]
+license = "MIT"
+readme = "README.md"
+
+[tool.poetry.urls]
+Repository = "https://github.com/elilaird/eli-project-template"
+
+[tool.poetry.dependencies]
+python = "^3.11"
+pandas = "^2.2.0"
+tabulate = "^0.9.0"
+tqdm = "^4.66.1"
+tensorflow-datasets = "^4.9.4"
+termcolor = "^2.4.0"
+keras-cv = "^0.8.2"
+keras-core = "^0.1.7"
+bocas = ">=0.0.3"
+
+
+[tool.poetry.group.dev.dependencies]
+mkdocs = "^1.5.3"
+mkdocstrings = "^0.24.0"
+mkdocstrings-python = "^1.8.0"
+
+[build-system]
+requires = ["poetry-core"]
+build-backend = "poetry.core.masonry.api"
