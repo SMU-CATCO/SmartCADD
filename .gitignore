@@ -1,0 +1,25 @@
+
+# python specific
+.ipynb_checkpoints/
+__pycache__/
+
+# playground for testing
+playground/
+
+# Mac OS
+.DS_Store
+
+# Old legacy code
+legacy
+
+# test notebooks
+*/test.ipynb
+
+# vscode workspaces
+*.code-workspace
+
+# data
+data/
+
+# design_docs
+design_docs/
