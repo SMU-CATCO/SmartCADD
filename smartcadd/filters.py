@@ -47,7 +47,10 @@ class ADMETFilter(Filter):
         """
 
         with Pool(self.n_processes) as pool:
-            filtered_batch = pool.map(self._filter, batch)
+            mask = pool.map(self._filter, batch)
+
+        # remove None values
+        filtered_batch = [compound for compound in mask if compound]
 
         return filtered_batch
 
@@ -79,7 +82,7 @@ class ADMETFilter(Filter):
         """
 
         if compound.descriptors["status"] == "INVALID":
-            return compound
+            return None
 
         for smarts_query in self._pains_patterns:
             if (
@@ -89,7 +92,7 @@ class ADMETFilter(Filter):
                 compound.descriptors["status"] = (
                     f"{smarts_query.desc} > {smarts_query.max_val}"
                 )
-                break
+                return None
 
         return compound
 
@@ -155,3 +158,110 @@ class ModelFilter(Filter):
         ]
 
         return filtered_batch
+
+
+class PharmacophoreFilter2D(Filter):
+    """
+    Filter compounds based on 2D pharmacophore features of a set of template compounds
+
+    Args:
+        filter_config (dict): configuration for filter
+        pharmacophore_df (pd.DataFrame): dataframe containing 2D pharmacophore features
+    """
+
+    def __init__(self, filter_config, template_compounds, n_processes=1):
+        super().__init__(filter_config)
+
+        self.template_dict = self._preprocess_templates(template_compounds)
+        self.n_processes = n_processes
+
+    def run(self, batch):
+        """
+        Filter compounds based on 2D pharmacophore features of template compounds
+
+        Args:
+            batch (list): list of Compound objects
+
+        Returns:
+            list: list of filtered Compound objects
+        """
+
+        with Pool(self.n_processes) as pool:
+            mask = pool.map(self._filter, batch)
+
+        filtered_batch = [compound for compound in mask if compound]
+
+        return filtered_batch
+
+    def _filter(self, compound):
+        """
+        Filter a single compound based on 2D pharmacophore features of template compounds
+
+        Args:
+            compound (Compound): compound object to filter
+
+        Returns:
+            Compound: filtered compound object
+        """
+
+        if compound.descriptors["status"] == "INVALID":
+            return None
+
+        flattened_compound = compound.to_dict()
+        keep = (
+            (
+                flattened_compound["total_N_aro_members"]
+                == self.template_dict["total_N_aro_members"]
+            )
+            and (
+                flattened_compound["total_N_ali_members"]
+                == self.template_dict["total_N_ali_members"]
+            )
+            and (
+                flattened_compound["total_aro_N_count"]
+                >= self.template_dict["total_aro_N_count"]
+            )
+            and (
+                flattened_compound["total_aro_O_count"]
+                >= self.template_dict["total_aro_O_count"]
+            )
+            and (
+                flattened_compound["total_ali_O_count"]
+                >= self.template_dict["total_ali_O_count"]
+            )
+            and (
+                flattened_compound["total_ali_N_count"]
+                >= self.template_dict["total_ali_N_count"]
+            )(
+                flattened_compound["NumHDonors"]
+                >= self.template_dict["NumHDonors"]
+            )
+            and (
+                flattened_compound["NumHAcceptors"]
+                >= self.template_dict["NumHAcceptors"]
+            )
+        )
+
+        if keep:
+            return compound
+
+        return None
+
+    def _preprocess_templates(self, template_compounds):
+        """
+        Preprocess template compounds to extract 2D pharmacophore features
+
+        Args:
+            template_compounds (list): list of template Compound objects
+
+        Returns:
+            pd.DataFrame: dataframe containing 2D pharmacophore features
+        """
+
+        template_df = pd.concat(
+            [compound.to_df() for compound in template_compounds]
+        )
+
+        out_dict = template_df.min(axis=0).iloc[0].to_dict()
+
+        return out_dict

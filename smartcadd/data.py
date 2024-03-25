@@ -10,6 +10,7 @@ from rdkit.Chem.rdMolDescriptors import CalcNumRotatableBonds
 from rdkit.Chem.Lipinski import NumAromaticRings
 from deepchem.feat import MolGraphConvFeaturizer
 import numpy as np
+import pandas as pd
 
 
 class Compound(object):
@@ -125,9 +126,12 @@ class Compound(object):
         return {
             "smiles": self.smiles,
             "id": self.id,
-            "descriptors": self.descriptors,
-            "ring_system_descriptors": self.ring_system_descriptors,
+            **self.descriptors,
+            **self.ring_system_descriptors,
         }
+
+    def to_df(self):
+        return pd.DataFrame.from_dict(self.to_dict(), orient="index").T
 
 
 class SMARTS_Query(object):
