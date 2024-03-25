@@ -1,11 +1,11 @@
 import os
 import subprocess
 
-from data import Compound
+from .data import Compound
 
 
 class IterableDataset(object):
-    def __init__(self, root_dir, batch_size=1000):
+    def __init__(self, root_dir: str, batch_size: int=1000):
         self.root_dir = root_dir
         self.batch_size = batch_size
         self.files = self._get_files(self.root_dir)
@@ -37,6 +37,6 @@ class IterableDataset(object):
         total_lines = int(result.stdout)
         return total_lines
 
-    def _get_files(self, root_dir):
+    def _get_files(self, root_dir: str):
         files = sorted([f for f in os.listdir(root_dir) if f.endswith(".smi")])
         return files

@@ -1,3 +1,4 @@
+from typing import List, Dict
 from rdkit import Chem
 from rdkit.Chem.Descriptors import (
     MolWt,
@@ -24,7 +25,7 @@ class Compound(object):
 
     """
 
-    def __init__(self, smiles, id):
+    def __init__(self, smiles: str, id: str):
         self.smiles = smiles
         self.id = id
 
@@ -135,7 +136,7 @@ class Compound(object):
 
 
 class SMARTS_Query(object):
-    def __init__(self, smarts, max_val, desc):
+    def __init__(self, smarts: str, max_val: float, desc: bool):
         self.smarts = smarts
         self.max_val = max_val
         self.desc = desc

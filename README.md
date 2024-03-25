@@ -15,4 +15,6 @@ conda activate smartcadd
 
 pip install poetry
 poetry install
+
+pip install -e
 ```

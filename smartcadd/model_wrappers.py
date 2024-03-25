@@ -1,3 +1,4 @@
+from typing import List, Dict, Any
 import numpy as np
 
 from data import Compound
@@ -14,28 +15,28 @@ class ModelWrapper:
 
     """
 
-    def __init__(self, model_params_path, **kwargs):
+    def __init__(self, model_params_path: str, **kwargs):
         self.model_params_path = model_params_path
 
         self.model = None
 
-    def predict(self, batch, target):
+    def predict(self, batch: List[Compound], target: int) -> List[float]:
         """
         Predict on input data using the model
         """
-        return NotImplementedError
+        return NotImplementedError("This method should be implemented in the subclass")
 
-    def featurize(self, batch):
+    def featurize(self, batch: List[Compound]) -> Any:
         """
         Featurize input data using the model
         """
-        raise NotImplementedError
+        return NotImplementedError("This method should be implemented in the subclass")
 
     def load(self):
         """
         Load the model from checkpoint
         """
-        raise NotImplementedError
+        return NotImplementedError("This method should be implemented in the subclass")
 
 
 class AttentiveFPWrapper(ModelWrapper):
@@ -49,14 +50,14 @@ class AttentiveFPWrapper(ModelWrapper):
 
     """
 
-    def __init__(self, model_params_path, **kwargs):
+    def __init__(self, model_params_path: str, **kwargs):
         from deepchem.models import AttentiveFPModel
 
         super().__init__(model_params_path)
 
         self.model = AttentiveFPModel(**kwargs)
 
-    def predict(self, batch, target):
+    def predict(self, batch: List[Compound], target: int) -> List[float]:
         """
         Predict on input featurized batch using the model
         """
@@ -64,11 +65,11 @@ class AttentiveFPWrapper(ModelWrapper):
         if isinstance(batch[0], Compound):
             batch = self.featurize(batch)
 
-        predictions = self.model.predict(batch)s
+        predictions = self.model.predict(batch)
 
         return [p[target] for p in predictions]
 
-    def featurize(self, batch):
+    def featurize(self, batch: List[Compound]) -> Any:
         from deepchem.data import NumpyDataset
 
         """
