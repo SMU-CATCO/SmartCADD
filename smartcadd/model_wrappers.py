@@ -1,7 +1,7 @@
 from typing import List, Dict, Any
 import numpy as np
 
-from data import Compound
+from .data import Compound
 
 
 class ModelWrapper:

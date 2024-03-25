@@ -2,12 +2,12 @@ from typing import List, Dict
 import pandas as pd
 from multiprocessing import Pool
 
-from model_wrappers import ModelWrapper
-from data import Compound, SMARTS_Query
+from .model_wrappers import ModelWrapper
+from .data import Compound, SMARTS_Query
 
 
 class Filter:
-    def __init__(self, filter_config):
+    def __init__(self, filter_config: Dict=None):
         self.filter_config = filter_config
     
     def __call__(self, batch: List[Compound]) -> List[Compound]:
@@ -18,6 +18,31 @@ class Filter:
     
     def _filter(self, compound: Compound) -> Compound:
         raise NotImplementedError("This method should be implemented in the subclass.")
+    
+
+class DummyFilter(Filter):
+    """
+    Dummy filter for testing purposes
+
+    Args:
+    filter_config (dict): configuration for filter
+    """
+
+    def __init__(self, filter_config: Dict=None):
+        super().__init__(filter_config)
+
+    def run(self, batch: List[Compound]) -> List[Compound]:
+        """
+        Dummy filter that returns the input batch
+
+        Args:
+        batch: list of Compound objects
+
+        Returns:
+        batch: list of Compound objects
+        """
+
+        return batch
 
 
 class ADMETFilter(Filter):
@@ -113,7 +138,7 @@ class ModelFilter(Filter):
         threshold (float): threshold for filtering
     """
 
-    def __init__(self, model_wrapper: ModelWrapper, filter_config: Dict, target: int, threshold: float=0.5):
+    def __init__(self, model_wrapper: ModelWrapper, filter_config: Dict=None, target: int=0, threshold: float=0.5):
         super().__init__(filter_config)
 
         self.model_wrapper = model_wrapper
@@ -127,7 +152,7 @@ class ModelFilter(Filter):
             print(f"Error loading model weights: {e}")
             raise e
 
-    def predict(self, batch: List[Compound], target: int) -> List[float]:
+    def predict(self, batch: List[Compound], target: int=0) -> List[float]:
         """
         Predict on input batch using the model.
 
@@ -176,7 +201,7 @@ class PharmacophoreFilter2D(Filter):
         pharmacophore_df (pd.DataFrame): dataframe containing 2D pharmacophore features
     """
 
-    def __init__(self, filter_config: Dict, template_compounds: List[Compound], n_processes: int=1):
+    def __init__(self, template_compounds: List[Compound], filter_config: Dict=None, n_processes: int=1):
         super().__init__(filter_config)
 
         self.template_dict = self._preprocess_templates(template_compounds)
