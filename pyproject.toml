@@ -12,6 +12,7 @@ pandas = "^2.2.1"
 rdkit = "^2023.9.5"
 deepchem = "^2.7.1"
 numpy = "^1.26.4"
+xtb = "^22.1"
 
 
 [build-system]
