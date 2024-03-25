@@ -1,1 +1,0 @@
-This directory will have your plots gernerated by `./../scripts/generate_plots.py`.

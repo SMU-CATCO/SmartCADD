@@ -1,8 +1,0 @@
-{
-  "config_file": "sweep-sizes.py",
-  "username": "caharper",
-  "experiment_name": "experiment_a",
-  "package_path": "/users/caharper/clay-project-template",
-  "container_image_path": "/work/users/caharper/containers/tensorflow+tensorflow+2.15.0.post1-gpu.sqsh",
-  "data_path": "/work/users/caharper/datasets/images"
-}
