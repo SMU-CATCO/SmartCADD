@@ -1,8 +1,0 @@
-site_name: My Docs
-plugins:
-  - search
-  - mkdocstrings:
-      handlers:
-        python:
-          rendering:
-            show_source: true

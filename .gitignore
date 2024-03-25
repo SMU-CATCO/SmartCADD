@@ -23,3 +23,6 @@ data/
 
 # design_docs
 design_docs/
+
+# documentation site
+docs/_build
