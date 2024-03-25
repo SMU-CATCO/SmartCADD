@@ -10,6 +10,9 @@
 ## Installation
 
 ```bash
+git clone git@github.com:SMU-CATCO/SmartCADD.git
+cd SmartCADD
+
 conda create -n smartcadd python=3.10
 conda activate smartcadd
 
