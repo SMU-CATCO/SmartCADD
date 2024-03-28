@@ -1,3 +1,5 @@
+<p align="center"><img src="./logo.jpeg" width="200" height="200"></p>
+
 # SmartCADD: An AI-Integrated Drug Designing Platform
 
 ## Current Version: **0.1**
