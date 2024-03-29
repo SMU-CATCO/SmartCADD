@@ -132,6 +132,24 @@ class SMILETo3D(Module):
 
         return batch
 
+    def save(self, batch: List[Compound], output_file: str = None) -> None:
+        """
+        Save results to csv with SMILES, ID, and PDB path
+
+        Args:
+            batch (List[Compound]): list of Compound objects
+        """
+
+        if output_file is None:
+            output_file = "3D_coordinates.csv"
+
+        with open(output_file, "w") as f:
+            f.write("SMILES,ID,PDB_PATH\n")
+            for compound in batch:
+                f.write(
+                    f"{compound.smiles},{compound.id},{compound.pdb_path}\n"
+                )
+
 
 class XTBOptimization(Module):
     """
@@ -212,3 +230,21 @@ class XTBOptimization(Module):
             )
 
         return batch
+
+    def save(self, batch: List[Compound], output_file: str = None) -> None:
+        """
+        Save results to csv with SMILES, ID, and optimizedPDB path
+
+        Args:
+            batch (List[Compound]): list of Compound objects
+        """
+
+        if output_file is None:
+            output_file = "XTB_optimized.csv"
+
+        with open(output_file, "w") as f:
+            f.write("SMILES,ID,PDB_PATH\n")
+            for compound in batch:
+                f.write(
+                    f"{compound.smiles},{compound.id},{compound.pdb_path}\n"
+                )
