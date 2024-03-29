@@ -4,8 +4,10 @@ These modules work in conjunction with the filtering operations defined in the f
 """
 
 from multiprocessing import Pool
+import subprocess
 from typing import List, Dict, Any
 import os
+from shutil import copy
 from random import shuffle
 from rdkit.Chem import AllChem, Mol, AddHs, MolToPDBFile
 
@@ -61,7 +63,7 @@ class DummyModule(Module):
     ):
         super().__init__(module_config, output_dir, nprocesses)
 
-    def run(self, batch: List[Compound], *args: Any, **kwargs: Any) -> Any:
+    def run(self, batch: List[Compound]) -> Any:
         """
         Dummy Module that returns a shuffled batch
         """
@@ -69,7 +71,7 @@ class DummyModule(Module):
         return shuffle(batch)
 
 
-class SmileTo3D(Module):
+class SMILETo3D(Module):
     """
     Module for generating 3D coordinates for a batch of Compounds.
 
@@ -96,7 +98,7 @@ class SmileTo3D(Module):
         else:
             self.modify = False
 
-    def run(self, batch: List[Compound], *args: Any, **kwargs: Any) -> Any:
+    def run(self, batch: List[Compound]) -> Any:
         """
         Generate 3D coordinates for a batch of Compounds
 
@@ -134,16 +136,79 @@ class SmileTo3D(Module):
 class XTBOptimization(Module):
     """
     Module for running XTB optimization on PDB files
+
+    Config:
+        from_file (bool): read PDB files from disk. If False, use Compound.mol
+            if already converted to 3D using SMILETo3D. Default is False
+
+        pdb_dir (str): directory containing PDB files. Default is None
+
     """
 
-    def __init__(self, module_config: Dict = None):
-        super().__init__(module_config)
+    def __init__(
+        self,
+        module_config: Dict = None,
+        output_dir: str = None,
+        nprocesses: int = 1,
+    ):
+        super().__init__(module_config, output_dir, nprocesses)
 
-    def run(self, batch: List[Compound], *args: Any, **kwargs: Any) -> Any:
+        if "from_file" in self.module_config:
+            self.from_file = self.module_config["from_file"]
+        else:
+            self.from_file = False
+
+        if self.from_file:
+            assert (
+                "pdb_dir" in self.module_config
+            ), "pdb_dir must be provided if from_file is True"
+            self.pdb_dir = self.module_config["pdb_dir"]
+
+    def run(self, batch: List[Compound]) -> Any:
         """
         Run XTB optimization on a batch of PDB files
         """
 
-        return NotImplementedError(
-            "This method should be implemented in the subclass."
-        )
+        if self.output_dir is not None:
+            save_dir = os.path.join(self.output_dir, "XTB_optimized")
+            os.makedirs(save_dir, exist_ok=True)
+
+        else:
+            save_dir = os.path.join(".", "XTB_optimized")
+            os.makedirs(save_dir, exist_ok=True)
+
+        workdir = os.getcwd()
+        for compound in batch:
+            if self.from_file:
+                pdb_path = os.path.join(self.pdb_dir, f"{compound.id}.pdb")
+            else:
+                try:
+                    # Convert generate pdb file
+                    _mol = AddHs(Mol(compound.mol))
+                    AllChem.EmbedMolecule(_mol)
+                    pdb_path = os.path.join(save_dir, f".tmp.pdb")
+                    MolToPDBFile(_mol, pdb_path)
+                except Exception as e:
+                    print(f"Error converting {compound.id} to PDB: {e}")
+                    continue
+
+            xtb_command = f"xtb {pdb_path} --opt"
+            try:
+                subprocess.run(xtb_command, shell=True, check=True)
+            except subprocess.CalledProcessError as e:
+                print(f"xtb command failed for {compound.id}: {e.returncode}")
+                continue
+
+            try:
+                os.rename(
+                    os.path.join(workdir, "xtbopt.pdb"),
+                    os.path.join(save_dir, f"{compound.id}_opt.pdb"),
+                )
+            except FileNotFoundError as e:
+                print(f"Error renaming xtbopt.pdb for {compound.id}: {e}")
+
+            compound.pdb_path = os.path.join(
+                save_dir, f"{compound.id}_opt.pdb"
+            )
+
+        return batch
