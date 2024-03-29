@@ -19,7 +19,7 @@ class Filter:
             "This method should be implemented in the subclass."
         )
 
-    def save(self, batch: List[Compound]) -> None:
+    def save(self, batch: List[Compound], output_file: str = None) -> None:
         raise NotImplementedError(
             "This method should be implemented in the subclass."
         )
@@ -35,7 +35,7 @@ class DummyFilter(Filter):
     Dummy filter for testing purposes
 
     Args:
-    filter_config (dict): configuration for filter
+        filter_config (dict): configuration for filter
     """
 
     def __init__(self, filter_config: Dict = None):
@@ -46,13 +46,30 @@ class DummyFilter(Filter):
         Dummy filter that returns the input batch
 
         Args:
-        batch: list of Compound objects
+            batch: list of Compound objects
 
         Returns:
-        batch: list of Compound objects
+            batch: list of Compound objects
         """
 
         return batch
+
+    def save(
+        self, batch: List[Compound], output_file: str = "dummy_filtered.csv"
+    ):
+        """
+        Save results to csv with SMILES, ID, **descriptors
+
+        Args:
+            batch (List[Compound]): list of Compound objects
+            output_file (str): output file path. Default is "dummy_filtered.csv"
+        """
+
+        df = pd.DataFrame.from_records(
+            [compound.to_dict() for compound in batch]
+        )
+
+        df.to_csv(output_file, index=False)
 
 
 class ADMETFilter(Filter):
@@ -60,8 +77,14 @@ class ADMETFilter(Filter):
     Filter compounds based on ADMET PAINS patterns
 
     Args:
-    filter_config (dict): configuration for filter
-    n_processes (int): number of processes to use for filtering
+        filter_config (dict): configuration for filter
+        n_processes (int): number of processes to use for filtering
+
+    Config:
+        save (bool): save filtered compounds to csv. Default is False
+
+    Returns:
+        filtered_batch: list of filtered Compound objects based on ADMET PAINS patterns
 
     """
 
@@ -72,6 +95,11 @@ class ADMETFilter(Filter):
         assert (
             "alert_collection_path" in filter_config.keys()
         ), "alert_collection_path not found in filter_config"
+
+        if "save" in filter_config.keys():
+            self.save = filter_config["save"]
+        else:
+            self.save = False
 
         self._pains_patterns = self._init(
             alert_collection_path=filter_config["alert_collection_path"]
@@ -92,9 +120,35 @@ class ADMETFilter(Filter):
             mask = pool.map(self._filter, batch)
 
         # remove None values
-        filtered_batch = [compound for compound in mask if compound]
+        filtered_batch = [
+            compound for compound, keep in zip(batch, mask) if keep
+        ]
+
+        if self.save:
+            self.save(zip(batch, mask))
 
         return filtered_batch
+
+    def save(
+        self, batch: List[Compound], output_file: str = "ADMET_filtered.csv"
+    ) -> None:
+        """
+        Save results to csv with SMILES, ID, **descriptors
+
+        Args:
+            batch (List[Compound]): list of Compound objects
+            output_file (str): output file path. Default is "ADMET_filtered.csv"
+        """
+
+        df = pd.DataFrame.from_records(
+            [
+                compound.to_dict() | {"keep": keep}
+                for compound, keep in batch
+                if keep
+            ]
+        )
+
+        df.to_csv(output_file, index=False)
 
     def _init(self, alert_collection_path: str) -> List[SMARTS_Query]:
         """
@@ -134,9 +188,9 @@ class ADMETFilter(Filter):
                 compound.descriptors["status"] = (
                     f"{smarts_query.desc} > {smarts_query.max_val}"
                 )
-                return None
+                return False
 
-        return compound
+        return True
 
 
 class ModelFilter(Filter):
@@ -146,6 +200,13 @@ class ModelFilter(Filter):
     Args:
         filter_config (dict): configuration for filter
         threshold (float): threshold for filtering
+
+    Config:
+        save (bool): save filtered compounds to csv. Default is False
+
+    Returns:
+        filtered_batch: list of filtered Compound objects based on model
+            prediction probabilities > threshold
     """
 
     def __init__(
@@ -161,6 +222,11 @@ class ModelFilter(Filter):
         self.target = target
         self.threshold = threshold
 
+        if "save" in filter_config.keys():
+            self.save = filter_config["save"]
+        else:
+            self.save = False
+
         # load model weights
         try:
             self.model_wrapper.load()
@@ -174,6 +240,9 @@ class ModelFilter(Filter):
 
         Args:
             batch (list): list of Compound objects
+
+        Config:
+            save (bool): save filtered compounds to csv. Default is False
 
         Returns:
             list: list of prediction probabilities
@@ -205,7 +274,28 @@ class ModelFilter(Filter):
             if predictions[idx] > self.threshold
         ]
 
+        if self.save:
+            self.save(zip(batch, predictions))
+
         return filtered_batch
+
+    def save(
+        self, batch: List[Compound], output_file: str = "model_filtered.csv"
+    ) -> None:
+        """
+        Save results to csv with SMILES, ID, prediction
+
+        Args:
+            batch (List[Compound]): list of Compound objects
+            output_file (str): output file path. Default is "model_filtered.csv"
+        """
+
+        with open(output_file, "w") as f:
+            f.write("SMILES,ID,Prediction\n")
+            for compound, prediction in batch:
+                f.write(
+                    f"{compound.smiles},{compound.id},{round(float(prediction), 3)}\n"
+                )
 
 
 class PharmacophoreFilter2D(Filter):
@@ -215,6 +305,12 @@ class PharmacophoreFilter2D(Filter):
     Args:
         filter_config (dict): configuration for filter
         pharmacophore_df (pd.DataFrame): dataframe containing 2D pharmacophore features
+
+    Config:
+        save (bool): save filtered compounds to csv. Default is False
+
+    Returns:
+        filtered_batch: list of filtered Compound objects based on 2D pharmacophore features
     """
 
     def __init__(
@@ -224,6 +320,11 @@ class PharmacophoreFilter2D(Filter):
         n_processes: int = 1,
     ):
         super().__init__(filter_config)
+
+        if "save" in filter_config.keys():
+            self.save = filter_config["save"]
+        else:
+            self.save = False
 
         self.template_dict = self._preprocess_templates(template_compounds)
         self.n_processes = n_processes
@@ -242,9 +343,37 @@ class PharmacophoreFilter2D(Filter):
         with Pool(self.n_processes) as pool:
             mask = pool.map(self._filter, batch)
 
-        filtered_batch = [compound for compound in mask if compound]
+        if self.save:
+            self.save(zip(batch, mask))
+
+        filtered_batch = [
+            compound for compound, keep in zip(batch, mask) if keep
+        ]
 
         return filtered_batch
+
+    def save(
+        self,
+        batch: List[Compound],
+        output_file: str = "2D_pharmacophore_filtered.csv",
+    ) -> None:
+        """
+        Save results to csv with SMILES, ID, keep
+
+        Args:
+            batch (List[Compound]): list of Compound objects
+            output_file (str): output file path. Default is "pharmacophore_filtered.csv"
+        """
+
+        df = pd.DataFrame.from_records(
+            [
+                compound.to_dict() | {"keep": keep}
+                for compound, keep in batch
+                if keep
+            ]
+        )
+
+        df.to_csv(output_file, index=False)
 
     def _filter(self, compound: Compound) -> Compound:
         """
@@ -296,9 +425,9 @@ class PharmacophoreFilter2D(Filter):
         )
 
         if keep:
-            return compound
+            return True
 
-        return None
+        return False
 
     def _preprocess_templates(
         self, template_compounds: List[Compound]

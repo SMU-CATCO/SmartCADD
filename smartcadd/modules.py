@@ -29,7 +29,7 @@ class Module:
         self.output_dir = output_dir
         self.nprocesses = nprocesses
 
-    def __call__(self, *args: Any, **kwargs: Any) -> Any:
+    def __call__(self) -> Any:
         return NotImplementedError(
             "This method should be implemented in the subclass."
         )
@@ -39,12 +39,12 @@ class Module:
             "This method should be implemented in the subclass."
         )
 
-    def run(self, batch: List[Compound], *args: Any, **kwargs: Any) -> Any:
+    def run(self, batch: List[Compound]) -> Any:
         return NotImplementedError(
             "This method should be implemented in the subclass."
         )
 
-    def save(self, *args: Any, **kwargs: Any) -> None:
+    def save(self, batch: List[Compound], output_file: str = None) -> None:
         return NotImplementedError(
             "This method should be implemented in the subclass."
         )
@@ -69,6 +69,19 @@ class DummyModule(Module):
         """
 
         return shuffle(batch)
+
+    def save(self, batch: List[Compound], output_file: str = None) -> None:
+        """
+        Dummy save method that does nothing
+        """
+
+        if output_file is None:
+            output_file = "dummy_output.csv"
+
+        with open(output_file, "w") as f:
+            f.write("SMILES,ID\n")
+            for compound in batch:
+                f.write(f"{compound.smiles},{compound.id}\n")
 
 
 class SMILETo3D(Module):
