@@ -33,6 +33,11 @@ class Pipeline:
             "This method should be implemented in the subclass."
         )
 
+    def save_results(self, results: Any, *args: Any, **kwargs: Any) -> None:
+        return NotImplementedError(
+            "This method should be implemented in the subclass."
+        )
+
 
 class BasicCompoundPipeline(Pipeline):
     """

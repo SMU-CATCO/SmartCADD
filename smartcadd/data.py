@@ -25,9 +25,10 @@ class Compound(object):
 
     """
 
-    def __init__(self, smiles: str, id: str):
+    def __init__(self, smiles: str, id: str, pdb_path: str = None):
         self.smiles = smiles
         self.id = id
+        self.pdb_path = pdb_path
 
         self.mol = Chem.MolFromSmiles(self.smiles)
         self.descriptors = self._compute_descriptors()

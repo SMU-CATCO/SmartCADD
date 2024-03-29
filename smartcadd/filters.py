@@ -7,18 +7,28 @@ from .data import Compound, SMARTS_Query
 
 
 class Filter:
-    def __init__(self, filter_config: Dict=None):
+    def __init__(self, filter_config: Dict = None, output_dir: str = None):
         self.filter_config = filter_config
-    
+        self.output_dir = output_dir
+
     def __call__(self, batch: List[Compound]) -> List[Compound]:
         return self.run(batch)
 
     def run(self, batch: List[Compound]) -> List[Compound]:
-        raise NotImplementedError("This method should be implemented in the subclass.")
-    
+        raise NotImplementedError(
+            "This method should be implemented in the subclass."
+        )
+
+    def save(self, batch: List[Compound]) -> None:
+        raise NotImplementedError(
+            "This method should be implemented in the subclass."
+        )
+
     def _filter(self, compound: Compound) -> Compound:
-        raise NotImplementedError("This method should be implemented in the subclass.")
-    
+        raise NotImplementedError(
+            "This method should be implemented in the subclass."
+        )
+
 
 class DummyFilter(Filter):
     """
@@ -28,7 +38,7 @@ class DummyFilter(Filter):
     filter_config (dict): configuration for filter
     """
 
-    def __init__(self, filter_config: Dict=None):
+    def __init__(self, filter_config: Dict = None):
         super().__init__(filter_config)
 
     def run(self, batch: List[Compound]) -> List[Compound]:
@@ -67,7 +77,7 @@ class ADMETFilter(Filter):
             alert_collection_path=filter_config["alert_collection_path"]
         )
 
-    def run(self, batch: List[Compound]) -> List[Compound]: 
+    def run(self, batch: List[Compound]) -> List[Compound]:
         """
         Filters compounds based on ADMET PAINS patterns
 
@@ -138,7 +148,13 @@ class ModelFilter(Filter):
         threshold (float): threshold for filtering
     """
 
-    def __init__(self, model_wrapper: ModelWrapper, filter_config: Dict=None, target: int=0, threshold: float=0.5):
+    def __init__(
+        self,
+        model_wrapper: ModelWrapper,
+        filter_config: Dict = None,
+        target: int = 0,
+        threshold: float = 0.5,
+    ):
         super().__init__(filter_config)
 
         self.model_wrapper = model_wrapper
@@ -152,7 +168,7 @@ class ModelFilter(Filter):
             print(f"Error loading model weights: {e}")
             raise e
 
-    def predict(self, batch: List[Compound], target: int=0) -> List[float]:
+    def predict(self, batch: List[Compound], target: int = 0) -> List[float]:
         """
         Predict on input batch using the model.
 
@@ -201,7 +217,12 @@ class PharmacophoreFilter2D(Filter):
         pharmacophore_df (pd.DataFrame): dataframe containing 2D pharmacophore features
     """
 
-    def __init__(self, template_compounds: List[Compound], filter_config: Dict=None, n_processes: int=1):
+    def __init__(
+        self,
+        template_compounds: List[Compound],
+        filter_config: Dict = None,
+        n_processes: int = 1,
+    ):
         super().__init__(filter_config)
 
         self.template_dict = self._preprocess_templates(template_compounds)
@@ -279,7 +300,9 @@ class PharmacophoreFilter2D(Filter):
 
         return None
 
-    def _preprocess_templates(self, template_compounds: List[Compound]) -> Dict:
+    def _preprocess_templates(
+        self, template_compounds: List[Compound]
+    ) -> Dict:
         """
         Preprocess template compounds to extract 2D pharmacophore features
 
