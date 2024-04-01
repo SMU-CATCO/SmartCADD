@@ -261,3 +261,67 @@ class XTBOptimization(Module):
                 f.write(
                     f"{compound.smiles},{compound.id},{compound.pdb_path}\n"
                 )
+
+
+class PDBToPDBQT(Module):
+    """
+    Module for converting PDB files to PDBQT files using OpenBabel
+    """
+
+    def __init__(
+        self,
+        module_config: Dict = None,
+        output_dir: str = None,
+        nprocesses: int = 1,
+    ):
+        super().__init__(module_config, output_dir, nprocesses)
+
+    def run(self, batch: List[Compound]) -> Any:
+        """
+        Convert PDB files to PDBQT files
+        """
+
+        with Pool(self.nprocesses) as pool:
+            pool.map(self._process, batch)
+
+        return batch
+
+    def save(self, batch: List[Compound], output_file: str = None) -> None:
+        """
+        Save results to csv with SMILES, ID, and PDBQT path
+
+        Args:
+            batch (List[Compound]): list of Compound objects
+        """
+
+        if output_file is None:
+            output_file = "PDBQT.csv"
+
+        with open(output_file, "w") as f:
+            f.write("SMILES,ID,PDBQT_PATH\n")
+            for compound in batch:
+                f.write(
+                    f"{compound.smiles},{compound.id},{compound.pdbqt_path}\n"
+                )
+
+    def _process(self, compound: Compound) -> None:
+        """
+        Convert PDB file to PDBQT file
+        """
+
+        try:
+            pdb_path = compound.pdb_path
+        except AttributeError:
+            print(f"Compound {compound.id} does not have a pdb_path")
+            return
+
+        pdbqt_path = os.path.join(self.output_dir, f"{compound.id}.pdbqt")
+
+        obabel_command = f"obabel -i pdb {pdb_path} -o pdbqt -O {pdbqt_path}"
+        try:
+            subprocess.run(obabel_command, shell=True, check=True)
+        except subprocess.CalledProcessError as e:
+            print(f"obabel command failed for {compound.id}: {e.returncode}")
+            return
+
+        compound.pdbqt_path = pdbqt_path
