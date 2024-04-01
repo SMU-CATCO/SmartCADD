@@ -10,7 +10,6 @@ from rdkit.Chem.Descriptors import (
 from rdkit.Chem.rdMolDescriptors import CalcNumRotatableBonds
 from rdkit.Chem.Lipinski import NumAromaticRings
 from deepchem.feat import MolGraphConvFeaturizer
-import numpy as np
 import pandas as pd
 
 
