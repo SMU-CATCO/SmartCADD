@@ -10,8 +10,11 @@ import os
 from shutil import copy
 from random import shuffle
 from rdkit.Chem import AllChem, Mol, AddHs, MolToPDBFile
+from dgl.nn import SubgraphX
+import networkx as nx
 
 from .data import Compound
+from .model_wrappers import ModelWrapper, AttentiveFP_DGLModelWrapper
 
 
 class Module:
@@ -325,3 +328,107 @@ class PDBToPDBQT(Module):
             return
 
         compound.pdbqt_path = pdbqt_path
+
+
+class ExplainableAI(Module):
+    """
+    Module for generating explanations for a batch of Compounds
+
+    Args:
+        model_wrapper (ModelWrapper): ModelWrapper object
+        module_config (Dict): configuration for the module
+        output_dir (str): output directory
+        nprocesses (int): number of processes to use
+
+    Config:
+        targ
+    """
+
+    def __init__(
+        self,
+        model_wrapper: ModelWrapper,
+        module_config: Dict = None,
+        target: int = 0,
+        output_dir: str = None,
+        nprocesses: int = 1,
+    ):
+        super().__init__(module_config, output_dir, nprocesses)
+
+        self.model_wrapper = model_wrapper
+        self.target = target
+
+        if "num_hops" in self.module_config:
+            self.num_hops = self.module_config["num_hops"]
+        else:
+            self.num_hops = 2
+
+        if "coef" in self.module_config:
+            self.coef = self.module_config["coef"]
+        else:
+            self.coef = 20.0
+
+        if "node_min" in self.module_config:
+            self.node_min = self.module_config["node_min"]
+        else:
+            self.node_min = 5
+
+    def run(self, batch: List[Compound]) -> Any:
+        """
+        Generate explanations for a batch of Compounds
+        """
+
+        subgraph = SubgraphX(
+            self.model_wrapper,
+            num_hops=self.num_hops,
+            coef=self.coef,
+            node_min=self.node_min,
+            log=False,
+        )
+
+        explained_batch = self._explain(subgraph, batch, target=self.target)
+
+        if self.save:
+            self.save(explained_batch)
+
+        return explained_batch
+
+    def save(self, batch: List[Compound], output_file: str = None) -> None:
+
+        if output_file is None:
+            output_file = "explanations.csv"
+
+        with open(output_file, "w") as f:
+            f.write("ID,EXPLANATION\n")
+            for compound in batch:
+                if compound is None:
+                    explanation = "NA"
+                else:
+                    explanation = compound.explanation
+                f.write(f"{compound.id},{compound.explanation}\n")
+
+    def _explain(
+        self, explainer: SubgraphX, batch: List[Compound], target: int = 0
+    ) -> Any:
+        """
+        Generate explanations for a batch of Compounds
+        """
+
+        featurized_batch = self.model_wrapper.featurize(batch)
+        dgl_batch = [
+            featurized_batch.X[i].to_dgl_graph()
+            for i, _ in enumerate(featurized_batch)
+        ]
+
+        for i, g in enumerate(dgl_batch):
+
+            try:
+                batch[i].explanation = explainer.explain_graph(
+                    g, g.ndata["x"], target_class=target
+                )
+            except Exception as e:
+                print(
+                    f"Failed to explain compound: {batch[i].id} with error {e}"
+                )
+                batch[i].explanation = None
+
+        return batch

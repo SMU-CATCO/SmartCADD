@@ -245,24 +245,6 @@ class ModelFilter(Filter):
             print(f"Error loading model weights: {e}")
             raise e
 
-    def predict(self, batch: List[Compound], target: int = 0) -> List[float]:
-        """
-        Predict on input batch using the model.
-
-        Args:
-            batch (list): list of Compound objects
-
-        Config:
-            save (bool): save filtered compounds to csv. Default is False
-
-        Returns:
-            list: list of prediction probabilities
-
-        """
-
-        featurized_batch = self.model.featurize(batch)
-
-        return self.model_wrapper.predict(featurized_batch, self.target)
 
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
@@ -276,7 +258,7 @@ class ModelFilter(Filter):
 
         """
 
-        predictions = self.predict(batch, self.target)
+        predictions = self._predict(batch, self.target)
 
         # filter based on threshold
         filtered_batch = [
@@ -307,7 +289,25 @@ class ModelFilter(Filter):
                 f.write(
                     f"{compound.smiles},{compound.id},{round(float(prediction), 3)}\n"
                 )
+    def _predict(self, batch: List[Compound], target: int = 0) -> List[float]:
+        """
+        Predict on input batch using the model.
 
+        Args:
+            batch (list): list of Compound objects
+
+        Config:
+            save (bool): save filtered compounds to csv. Default is False
+
+        Returns:
+            list: list of prediction probabilities
+
+        """
+
+        featurized_batch = self.model_wrapper.featurize(batch)
+
+        return self.model_wrapper.predict(featurized_batch, self.target)
+    
 
 class PharmacophoreFilter2D(Filter):
     """
