@@ -13,6 +13,9 @@ class Filter:
     def __call__(self, batch: List[Compound]) -> List[Compound]:
         return self.run(batch)
 
+    def __str__(self) -> str:
+        return self.__class__.__name__
+    
     def run(self, batch: List[Compound]) -> List[Compound]:
         raise NotImplementedError("This method should be implemented in the subclass.")
     

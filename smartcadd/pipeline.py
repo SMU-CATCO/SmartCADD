@@ -20,6 +20,11 @@ class Pipeline:
         self, compounds: List[Compound], *args: Any, **kwargs: Any
     ) -> Any:
         return self.run(compounds, *args, **kwargs)
+    
+    def __str__(self) -> str:
+        string = f"\n{self.__class__.__name__}:" + \
+                    f" [ {' -> '.join([f'({i+1}) {str(f)}' for i,f in enumerate(self.filters)])}" + " -> Done ]" 
+        return string
 
     def run_filters(
         self, compounds: List[Compound], *args: Any, **kwargs: Any
@@ -32,6 +37,9 @@ class Pipeline:
         return NotImplementedError(
             "This method should be implemented in the subclass."
         )
+    
+    def summary(self) -> str:
+        print(self.__str__())
 
 
 class BasicCompoundPipeline(Pipeline):
@@ -39,8 +47,8 @@ class BasicCompoundPipeline(Pipeline):
     Basic implementation of a Compound Pipeline
     """
 
-    def __init__(self, filters: List[Filter]):
-        super().__init__(filters)
+    def __init__(self, data_loader: IterableDataset, filters: List[Filter]):
+        super().__init__(data_loader, filters)
 
     def run_filters(self, compounds: List[Compound]) -> List[Compound]:
         for filter in self.filters:
@@ -50,3 +58,4 @@ class BasicCompoundPipeline(Pipeline):
     def get_data(self) -> Iterable[Compound]:
         for batch in self.data_loader:
             yield batch
+
