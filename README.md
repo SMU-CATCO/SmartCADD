@@ -23,3 +23,16 @@ poetry install
 
 pip install -e
 ```
+
+## Dependencies
+
+-   PyMol: `conda install -c conda-forge -c schrodinger pymol-bundle`
+
+    -   If MaxOS: `pip install PyQt5`
+    -   [Other options]('https://pymol.org/support.html?#installation')
+
+-   PDBFixer: `conda install conda-forge::pdbfixer`
+
+-   Openmm: `pip install openmm`
+-   MDAnalysis: `pip install MDAnalysis`
+-   pybel: `pip install pybel`

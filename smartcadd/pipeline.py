@@ -41,6 +41,11 @@ class Pipeline:
     def summary(self) -> str:
         print(self.__str__())
 
+    def save_results(self, results: Any, *args: Any, **kwargs: Any) -> None:
+        return NotImplementedError(
+            "This method should be implemented in the subclass."
+        )
+
 
 class BasicCompoundPipeline(Pipeline):
     """
