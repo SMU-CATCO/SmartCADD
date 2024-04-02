@@ -1,6 +1,7 @@
+from collections import defaultdict
 import os
 import subprocess
-from typing import List, Dict
+from typing import List, Dict, Tuple
 import pandas as pd
 from multiprocessing import Pool
 from pymol import cmd
@@ -9,10 +10,12 @@ from pdbfixer import PDBFixer
 from openmm.app import PDBFile
 import MDAnalysis as mda
 from MDAnalysis.coordinates import PDB
+from rdkit import Chem
+from rdkit.Geometry import Point3D
 
 from .model_wrappers import ModelWrapper
 from .data import Compound, SMARTS_Query
-
+import utils 
 
 class Filter:
     def __init__(self, filter_config: Dict = None, output_dir: str = None):
@@ -487,8 +490,13 @@ class PharmacophoreFilter3D(Filter):
         else:
             self.save = False
 
-        self.template_dict = self._preprocess_templates(template_compounds)
+        self.template_compounds = self._preprocess_templates(template_compounds)
         self.n_processes = n_processes
+
+        self.conformer_generator = Chem.AllChem.ETKDGv2()
+        self.conformer_generator.numThreads = 0 # use all threads
+        self.conformer_generator.useRandomCoords = True # use random starting coordinates
+        self.conformer_generator.randomSeed = 42
 
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
@@ -502,20 +510,26 @@ class PharmacophoreFilter3D(Filter):
         """
 
         with Pool(self.n_processes) as pool:
-            mask = pool.map(self._filter, batch)
+            processed = pool.map(self._process_leads, batch)
+
+        # with Pool(self.n_processes) as pool:
+        #     mask = pool.map(self._filter, batch)
+            
+        # flatten processed list
+        processed = [item for sublist in processed for item in sublist]
 
         if self.save:
-            self.save(zip(batch, mask))
+            self.save(processed)
 
-        filtered_batch = [
-            compound for compound, keep in zip(batch, mask) if keep
-        ]
+        # filtered_batch = [
+        #     compound for compound, keep in zip(batch, mask) if keep
+        # ]
 
-        return filtered_batch
+        return batch
 
     def save(
         self,
-        batch: List[Compound],
+        batch: List[Dict],
         output_file: str = "3D_pharmacophore_filtered.csv",
     ) -> None:
         """
@@ -526,13 +540,7 @@ class PharmacophoreFilter3D(Filter):
             output_file (str): output file path. Default is "pharmacophore_filtered.csv"
         """
 
-        df = pd.DataFrame.from_records(
-            [
-                compound.to_dict() | {"keep": keep}
-                for compound, keep in batch
-                if keep
-            ]
-        )
+        df = pd.DataFrame(batch)
 
         df.to_csv(output_file, index=False)
 
@@ -547,6 +555,238 @@ class PharmacophoreFilter3D(Filter):
             Compound: filtered compound
         """
         return NotImplementedError("Not implemented yet")
+    
+    def _process_leads(self, compound: Compound) -> Dict:
+        """
+        Process lead compounds to extract 3D pharmacophore features
+
+        Args:
+            compound (Compound): compound object
+
+        Returns:
+            Dict: dictionary containing 3D pharmacophore features
+        """
+        hydrogen_bonds, midpoints, align_coordinates = self._gather_coordinates(compound)
+        if hydrogen_bonds is None or midpoints is None or align_coordinates is None:
+            return None
+        
+        conformations = []
+        for template in self.template_compounds:
+
+            if len(midpoints) >= 2:
+                if len(align_coordinates) == 6:
+                    constrains_alignment = list(zip(align_coordinates, template.align_coordinates))
+
+                    # generate conformers
+                    conformations = self._generate_conformers(compound, template.mol, constrains_alignment)
+                    for conformation in conformations:
+                        idx, conf_mol, score = conformation
+                        conf_hbs, conf_mid_pts, _ = self._get_poses(conf_mol)
+                        zero_mid_points = utils.find_zero_midpoints(midpoints, conf_mid_pts)
+                        tani = Chem.rdShapeHelpers.ShapeTanimotoDist(conf_mol, template.mol)
+                        prtr = Chem.rdShapeHelpers.ShapeProtrudeDist(conf_mol, template.mol)
+                        if zero_mid_points is not None:
+                            template_acc_don_distances = utils.acc_don_dist(zero_mid_points, template.hydrogen_bonds)
+                            lead_acc_don_distances = utils.acc_don_dist(zero_mid_points, conf_hbs)
+                            acc_don_score = utils.scoring_function(template_acc_don_distances, lead_acc_don_distances, zero_mid_points)
+                            ring_scoring = utils.other_middle_points(template.midpoints, conf_mid_pts, zero_mid_points)
+                            total_score = [x + y for x, y in zip(acc_don_score, ring_scoring)] / (len(lead_acc_don_distances) + len(template_acc_don_distances))
+                            conformations.append({
+                                "lead_id": compound.id,
+                                "conformer_idx": idx,
+                                "template_id": template.id,
+                                "tani": tani,
+                                "prtr": prtr,
+                                "conformer_score": score,
+                                "score_0.1": total_score[0],
+                                "score_0.2": total_score[1],
+                                "score_0.3": total_score[2],
+                                "score_0.4": total_score[3],
+                                "score_0.5": total_score[4]
+                            })
+            elif len(midpoints) == 1:
+                constrains_alignment = list(zip(align_coordinates, template.align_coordinates))
+                conformations = self._generate_conformers(compound, template.mol, constrains_alignment)
+                for conformation in conformations:
+                    idx, conf_mol, score = conformation
+                    conf_hbs, conf_mid_pts, _ = self._get_poses(conf_mol)
+                    template_acc_don_distances = utils.acc_don_dist(midpoints, template.hydrogen_bonds)
+                    lead_acc_don_distances = utils.acc_don_dist(midpoints, conf_hbs)
+                    zero_mid_points = utils.find_zero_midpoints(midpoints, conf_mid_pts)
+                    acc_don_score = utils.scoring_function(template_acc_don_distances, lead_acc_don_distances, midpoints)
+                    conformations.append({
+                        "lead_id": compound.id,
+                        "conformer_idx": idx,
+                        "template_id": template.id,
+                        "tani": None,
+                        "prtr": None,
+                        "conformer_score": score,
+                        "score_0.1": acc_don_score[0],
+                        "score_0.2": acc_don_score[1],
+                        "score_0.3": acc_don_score[2],
+                        "score_0.4": acc_don_score[3],
+                        "score_0.5": acc_don_score[4]
+                    })
+
+        return conformations
+                        
+    def _generate_conformers(self, compound: Compound, template: Compound, constraints: List[Tuple]) -> Compound:
+        """
+        Generate conformers for compound based on template
+
+        Args:
+            compound (Compound): compound object
+            template (Compound): template compound object
+            constraints (List[Tuple]): list of constraints for alignment
+
+        Returns:
+            Compound: compound object with generated conformers
+        """
+
+        lead = Chem.MolFromPDBFile(compound.pdb_path, removeHs=False)
+        lead = Chem.AllChem.AssignBondOrdersFromTemplate(compound.mol, lead)
+        drug = Chem.MolFromPDBFile(template.pdb_path, removeHs=False)
+        drug = Chem.AllChem.AssignBondOrdersFromTemplate(template.mol, drug)
+
+        conf_num = []
+        num_conformers = Chem.AllChem.EmbedMultipleConfs(compound.mol, 100, self.conformer_generator)
+        for i, conf in enumerate(num_conformers):
+            mol_with_conf = Chem.Mol(lead)  # Create a copy of the original molecule
+            mol_with_conf.RemoveAllConformers()  # Remove any existing conformers
+            mol_with_conf.AddConformer(lead.GetConformer(conf), assignId=True)  # Add the desired conformer
+            o3d = Chem.rdMolAlign.GetO3A(mol_with_conf, drug, constraintMap=constraints)
+            o3d.Align()
+            score = o3d.Score()
+            conf_num.append([i, mol_with_conf,score])
+        return conf_num
+
+    
+    def _gather_coordinates(self, compound: Compound) -> Compound:
+        """
+        Gather 3D coordinates for compound
+
+        Args:
+            compound (Compound): compound object
+
+        Returns:
+            Dict: dictionary containing 3D coordinates
+        """
+
+        # get poses
+        hydrogen_bonds = []
+        try:
+            pdb_mol = Chem.MolFromPDBFile(compound.pdb_path, removeHs=False)
+            pdb_mol = Chem.AllChem.AssignBondOrdersFromTemplate(compound.mol, pdb_mol)
+        except Exception as e:
+            print(f"Error processing Mol from pdb for {compound.id}: {e}")
+            return None, None, None
+        
+
+        try:
+            # get hydrogen bond coordinates
+            for idx in range(pdb_mol.GetNumAtoms()):
+                symbol = pdb_mol.GetAtomWithIdx(idx).GetSymbol()
+                if symbol == "H" or symbol == "O":
+                    conformer = pdb_mol.GetConformer(0)
+                    coords = conformer.GetAtomPosition(idx)
+                    hydrogen_bonds.append(coords)
+
+            # get midpoints of ring systems
+            midpoints = []
+            for idx, system in enumerate(compound.ring_systems):
+                ring_indices = system
+                x_sum = sum(pdb_mol.GetConformer(0).GetAtomPosition(i).x for i in ring_indices)
+                y_sum = sum(pdb_mol.GetConformer(0).GetAtomPosition(i).y for i in ring_indices)
+                z_sum = sum(pdb_mol.GetConformer(0).GetAtomPosition(i).z for i in ring_indices)
+
+                middle_point = Point3D(x_sum / len(ring_indices),
+                        y_sum / len(ring_indices),
+                        z_sum / len(ring_indices))
+                midpoints.append(middle_point)
+
+            # align coordinates
+            align_coordinates = []
+            if len(compound.ring_systems) == 3:
+                ring = list(compound.ring_systems[1])
+                atom = pdb_mol.GetAtomWithIdx(ring[0])
+                if atom.GetIsAromatic():
+                    align_coordinates.append(ring)
+            elif len(compound.ring_systems) == 2:
+                for ring in compound.ring_systems:
+                    ring = list(ring)
+                    atom = pdb_mol.GetAtomWithIdx(ring[0])
+                    is_aromatic = atom.GetIsAromatic()
+                    if is_aromatic:
+                        align_coordinates.append(ring)
+            align_coordinates = align_coordinates[0]
+
+        except Exception as e:
+            print(f"Error processing coordinates for {compound.id}: {e}")
+            return None, None, None
+        
+        return hydrogen_bonds, midpoints, align_coordinates
+    
+    def _process_templates(self, template_compounds: List[Compound]) -> Dict:
+        """
+        Process template compounds to extract 3D pharmacophore features
+
+        Args:
+            template_compounds (list): list of template Compound objects
+
+        Returns:
+            List[Compound]: list of Compound objects with 3D pharmacophore features added as attributes
+        """
+
+        for template in template_compounds:
+            hydrogen_bonds, midpoints, align_coordinates = self._gather_coordinates(template)
+            template.hydrogen_bonds = hydrogen_bonds
+            template.midpoints = midpoints
+            template.align_coordinates = align_coordinates
+
+        return template_compounds
+    
+    def _get_poses(self, mol: Chem.Mol):
+        
+        # get hydrogen bond coordinates
+        hydrogen_bonds = []
+        for index in range (mol.GetNumAtoms()):
+            atom = mol.GetAtomWithIdx(index)
+            atom_symbol = atom.GetSymbol()
+            if atom_symbol == 'N' or atom_symbol == 'O':
+                conf = mol.GetConformer(0)
+                coord = conf.GetAtomPosition(index)
+                hydrogen_bonds.append(coord)
+        
+        # get ring systems
+        ri = mol.GetRingInfo()
+        systems = []
+        for ring in ri.AtomRings():
+            ringAts = set(ring)
+            nSystems = []
+            for system in systems:
+                nInCommon = len(ringAts.intersection(system))
+                if nInCommon and (nInCommon > 1):
+                    ringAts = ringAts.union(system)
+                else:
+                    nSystems.append(system)
+            nSystems.append(ringAts)
+            systems = nSystems
+
+        # get midpoints
+        mid_points = []
+        for index, ring_indices in enumerate(systems):
+            x_sum = sum(mol.GetConformer(0).GetAtomPosition(i).x for i in ring_indices)
+            y_sum = sum(mol.GetConformer(0).GetAtomPosition(i).y for i in ring_indices)
+            z_sum = sum(mol.GetConformer(0).GetAtomPosition(i).z for i in ring_indices)
+
+            middle_point = Point3D(x_sum / len(ring_indices),
+                       y_sum / len(ring_indices),
+                       z_sum / len(ring_indices))
+            mid_points.append(middle_point)
+
+        return hydrogen_bonds, mid_points, systems
+        
+         
 
 
 class SminaDockingFilter(Filter):

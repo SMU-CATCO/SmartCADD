@@ -32,6 +32,7 @@ class Compound(object):
         self.mol = Chem.MolFromSmiles(self.smiles)
         self.descriptors = self._compute_descriptors()
         self.ring_system_descriptors = self._compute_ring_system_descriptors()
+        self.ring_systems = self._compute_ring_systems()
         self.graph_data = self._featurize()
 
     def _compute_descriptors(self):
@@ -98,6 +99,22 @@ class Compound(object):
             "total_ali_O_count": total_ali_O_count,
             "total_ali_N_count": total_ali_N_count,
         }
+
+    def _compute_ring_systems(self):
+        ri = self.mol.GetRingInfo()
+        systems = []
+        for ring in ri.AtomRings():
+            ringAts = set(ring)
+            nSystems = []
+            for system in systems:
+                nInCommon = len(ringAts.intersection(system))
+                if nInCommon and (nInCommon > 1):
+                    ringAts = ringAts.union(system)
+                else:
+                    nSystems.append(system)
+            nSystems.append(ringAts)
+            systems = nSystems
+        return systems
 
     def _featurize(self):
         featurizer = MolGraphConvFeaturizer(use_edges=True)
