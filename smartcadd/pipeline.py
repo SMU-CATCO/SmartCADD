@@ -32,6 +32,11 @@ class Pipeline:
         return NotImplementedError(
             "This method should be implemented in the subclass."
         )
+    
+    def append_filter(
+        self, filter: Filter
+    ) -> Any:
+        self.filters.append(filter)
 
     def get_data(self) -> Iterable[Compound]:
         return NotImplementedError(
