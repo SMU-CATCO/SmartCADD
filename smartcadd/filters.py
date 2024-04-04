@@ -18,13 +18,16 @@ from .data import Compound, SMARTS_Query
 from . import utils 
 
 class Filter:
-    def __init__(self, output_dir: str = ".", n_processes: int = 1, save_results: bool = False):
+    def __init__(self, output_dir: str = None, n_processes: int = 1, save_results: bool = False):
         self.output_dir = output_dir
         self.n_processes = n_processes
         self.save_results = save_results
 
-        if not os.path.exists(output_dir):
-            os.makedirs(self.output_dir, exist_ok=True)
+        if output_dir is None:
+            self.output_dir = os.getcwd()
+        else:
+            if not os.path.exists(output_dir):
+                os.makedirs(self.output_dir, exist_ok=True)
 
     def __call__(self, batch: List[Compound]) -> List[Compound]:
         return self.run(batch)
@@ -56,7 +59,7 @@ class DummyFilter(Filter):
         filter_config (dict): configuration for filter
     """
 
-    def __init__(self, output_dir: str = ".", n_processes: int = 1, save_results: bool = False):
+    def __init__(self, output_dir: str = None, n_processes: int = 1, save_results: bool = False):
         super().__init__(output_dir, n_processes, save_results)
 
     def run(self, batch: List[Compound]) -> List[Compound]:
@@ -224,7 +227,7 @@ class ModelFilter(Filter):
         model_wrapper: ModelWrapper,
         target: int = 0,
         threshold: float = 0.5,
-        output_dir: str = ".",
+        output_dir: str = None,
         n_processes: int = 1,
         save_results: bool = False
     ):
@@ -323,7 +326,7 @@ class PharmacophoreFilter2D(Filter):
     def __init__(
         self,
         template_compounds: List[Compound],
-        output_dir: str = ".",
+        output_dir: str = None,
         n_processes: int = 1,
         save_results: bool = False
     ):
@@ -467,7 +470,7 @@ class PharmacophoreFilter3D(Filter):
     def __init__(
         self,
         template_compounds: List[Compound],
-        output_dir: str = ".",
+        output_dir: str = None,
         n_processes: int = 1,
         save_results: bool = False
     ):
@@ -796,7 +799,7 @@ class SminaDockingFilter(Filter):
         protein_code: str,
         optimized_pdb_dir: str,
         protein_path: str = None,
-        output_dir: str = ".",
+        output_dir: str = None,
         n_processes: int = 1,
         save_results: bool = False,
     ):

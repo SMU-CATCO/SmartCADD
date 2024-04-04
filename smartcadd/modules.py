@@ -24,13 +24,14 @@ class Module:
 
     def __init__(
         self,
-        module_config: Dict = None,
         output_dir: str = None,
-        nprocesses: int = 1,
+        n_processes: int = 1,
+        save_results: bool = False,
     ) -> None:
         self.module_config = module_config
         self.output_dir = output_dir
-        self.nprocesses = nprocesses
+        self.n_processes = n_processes
+        self.save_results = save_results
 
     def __call__(self) -> Any:
         return NotImplementedError(
@@ -62,9 +63,10 @@ class DummyModule(Module):
         self,
         module_config: Dict = None,
         output_dir: str = None,
-        nprocesses: int = 1,
+        n_processes: int = 1,
+        save_results: bool = False,
     ):
-        super().__init__(module_config, output_dir, nprocesses)
+        super().__init__(module_config, output_dir, n_processes)
 
     def run(self, batch: List[Compound]) -> Any:
         """
@@ -81,7 +83,7 @@ class DummyModule(Module):
         if output_file is None:
             output_file = "dummy_output.csv"
 
-        with open(output_file, "w") as f:
+        with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID\n")
             for compound in batch:
                 f.write(f"{compound.smiles},{compound.id}\n")
@@ -91,28 +93,20 @@ class SMILETo3D(Module):
     """
     Module for generating 3D coordinates for a batch of Compounds.
 
-    Config:
-        save (bool): save PDB files to output directory
-        modify (bool): update Compound.mol with new 3D coordinates
+    Args:
+        modify (bool): modify the Compound object with the 3D coordinates. Default is False
     """
 
     def __init__(
         self,
-        module_config: Dict = None,
+        modify: bool = False,
         output_dir: str = None,
-        nprocesses: int = 1,
+        n_processes: int = 1,
+        save_results: bool = False,
     ):
-        super().__init__(module_config, output_dir, nprocesses)
+        super().__init__(output_dir, n_processes, save_results)
 
-        if "save" in self.module_config:
-            self.save = self.module_config["save"]
-        else:
-            self.save = False
-
-        if "modify" in self.module_config:
-            self.modify = self.module_config["modify"]
-        else:
-            self.modify = False
+        self.modify = modify
 
     def run(self, batch: List[Compound]) -> Any:
         """
@@ -143,7 +137,7 @@ class SMILETo3D(Module):
             if self.modify:
                 compound.mol = _mol
 
-        with Pool(self.nprocesses) as pool:
+        with Pool(self.n_processes) as pool:
             pool.map(embed, batch)
 
         return batch
@@ -159,7 +153,7 @@ class SMILETo3D(Module):
         if output_file is None:
             output_file = "3D_coordinates.csv"
 
-        with open(output_file, "w") as f:
+        with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDB_PATH\n")
             for compound in batch:
                 f.write(
@@ -171,7 +165,7 @@ class XTBOptimization(Module):
     """
     Module for running XTB optimization on PDB files
 
-    Config:
+    Args:
         from_file (bool): read PDB files from disk. If False, use Compound.mol
             if already converted to 3D using SMILETo3D. Default is False
 
@@ -181,22 +175,19 @@ class XTBOptimization(Module):
 
     def __init__(
         self,
+        from_file: bool = False,
+        pdb_dir: str = None,
         module_config: Dict = None,
         output_dir: str = None,
-        nprocesses: int = 1,
+        n_processes: int = 1,
     ):
-        super().__init__(module_config, output_dir, nprocesses)
+        super().__init__(output_dir, n_processes, save_results)
 
-        if "from_file" in self.module_config:
-            self.from_file = self.module_config["from_file"]
-        else:
-            self.from_file = False
+       self.from_file = from_file
+       self.pdb_dir = pdb_dir
 
         if self.from_file:
-            assert (
-                "pdb_dir" in self.module_config
-            ), "pdb_dir must be provided if from_file is True"
-            self.pdb_dir = self.module_config["pdb_dir"]
+            assert self.pdb_dir is not None
 
     def run(self, batch: List[Compound]) -> Any:
         """
@@ -258,7 +249,7 @@ class XTBOptimization(Module):
         if output_file is None:
             output_file = "XTB_optimized.csv"
 
-        with open(output_file, "w") as f:
+        with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDB_PATH\n")
             for compound in batch:
                 f.write(
@@ -273,18 +264,18 @@ class PDBToPDBQT(Module):
 
     def __init__(
         self,
-        module_config: Dict = None,
         output_dir: str = None,
-        nprocesses: int = 1,
+        n_processes: int = 1,
+        save_results: bool = False,
     ):
-        super().__init__(module_config, output_dir, nprocesses)
+        super().__init__(output_dir, n_processes, save_results)
 
     def run(self, batch: List[Compound]) -> Any:
         """
         Convert PDB files to PDBQT files
         """
 
-        with Pool(self.nprocesses) as pool:
+        with Pool(self.n_processes) as pool:
             pool.map(self._process, batch)
 
         return batch
@@ -300,7 +291,7 @@ class PDBToPDBQT(Module):
         if output_file is None:
             output_file = "PDBQT.csv"
 
-        with open(output_file, "w") as f:
+        with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDBQT_PATH\n")
             for compound in batch:
                 f.write(
@@ -336,41 +327,34 @@ class ExplainableAI(Module):
 
     Args:
         model_wrapper (ModelWrapper): ModelWrapper object
-        module_config (Dict): configuration for the module
+        target (int): target class to explain
+        num_hops (int): number of n-hop neighborhoods to use for SubgraphX
+        coef (float): hyperparameter for exploration-exploitation tradeoff. Higher = more exploration. Default = 20.0
+        node_min (int): minimum number of nodes to include in explanation subgraph
         output_dir (str): output directory
-        nprocesses (int): number of processes to use
+        n_processes (int): number of processes to use
+        save_results (bool): save results. Default is False.s
 
-    Config:
-        targ
     """
 
     def __init__(
         self,
         model_wrapper: ModelWrapper,
-        module_config: Dict = None,
-        target: int = 0,
+        target: int,
+        num_hops: int = 1, 
+        coef: float = 20.0,
+        node_min: int = 3,
         output_dir: str = None,
-        nprocesses: int = 1,
+        n_processes: int = 1,
+        save_results: bool = False,
     ):
-        super().__init__(module_config, output_dir, nprocesses)
+        super().__init__(output_dir, n_processes, save_results)
 
         self.model_wrapper = model_wrapper
         self.target = target
-
-        if "num_hops" in self.module_config:
-            self.num_hops = self.module_config["num_hops"]
-        else:
-            self.num_hops = 2
-
-        if "coef" in self.module_config:
-            self.coef = self.module_config["coef"]
-        else:
-            self.coef = 20.0
-
-        if "node_min" in self.module_config:
-            self.node_min = self.module_config["node_min"]
-        else:
-            self.node_min = 5
+        self.num_hops = num_hops
+        self.coef = coef
+        self.node_min = node_min
 
     def run(self, batch: List[Compound]) -> Any:
         """
@@ -397,7 +381,7 @@ class ExplainableAI(Module):
         if output_file is None:
             output_file = "explanations.csv"
 
-        with open(output_file, "w") as f:
+        with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("ID,EXPLANATION\n")
             for compound in batch:
                 if compound is None:
