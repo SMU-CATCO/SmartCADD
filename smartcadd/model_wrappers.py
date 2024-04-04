@@ -1,7 +1,8 @@
 from types import MethodType
 from typing import List, Dict, Any
 import numpy as np
-from torch.nn import Module
+from deepchem.data import NumpyDataset
+from deepchem.models import AttentiveFPModel
 
 from .data import Compound
 
@@ -11,7 +12,6 @@ class ModelWrapper:
     Base wrapper class for prediction models
 
     Args:
-    model (str): model name
     model_params_path (str): path to model parameters
     **kwargs: keyword arguments required for model
 
@@ -52,25 +52,24 @@ class AttentiveFPWrapper(ModelWrapper):
     Wrapper class for AttentiveFP model
 
     Args:
-    model (str): model name
     model_config (dict): configuration for model
     model_params_path (str): path to model parameters
 
     """
 
     def __init__(self, model_params_path: str, **kwargs):
-        from deepchem.models import AttentiveFPModel
 
         super().__init__(model_params_path)
 
         self.model = AttentiveFPModel(**kwargs)
+        self.load()
 
     def predict(self, batch: List[Compound], target: int) -> List[float]:
         """
         Predict on input featurized batch using the model
         """
 
-        if isinstance(batch[0], Compound):
+        if isinstance(batch, Compound):
             batch = self.featurize(batch)
 
         predictions = self.model.predict(batch)
@@ -78,14 +77,13 @@ class AttentiveFPWrapper(ModelWrapper):
         return [p[target] for p in predictions]
 
     def featurize(self, batch: List[Compound]) -> Any:
-        from deepchem.data import NumpyDataset
 
         """
         Featurize input data using the model
         """
-        graph_features = [compound.graph_features for compound in batch]
+        graph_features = [compound.graph_data for compound in batch]
 
-        return NumpyDataset(graph_features, np.ones(len(graph_features)))
+        return NumpyDataset(X=graph_features, y=np.ones(len(graph_features)))
 
     def load(self):
         """
@@ -97,7 +95,6 @@ class AttentiveFPWrapper(ModelWrapper):
 
 class AttentiveFP_DGLModelWrapper(AttentiveFPWrapper):
     def __init__(self, model_params_path: str, **kwargs):
-        from deepchem.models import AttentiveFPModel
 
         super().__init__(model_params_path, **kwargs)
 

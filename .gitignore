@@ -20,6 +20,9 @@ legacy
 
 # data
 data/
+*.csv
+*.pdb
+*.pdbqt
 
 # design_docs
 design_docs/

@@ -118,7 +118,7 @@ class Compound(object):
 
     def _featurize(self):
         featurizer = MolGraphConvFeaturizer(use_edges=True)
-        return featurizer.featurize(self.mol)
+        return featurizer.featurize(self.mol)[0]
 
     def __str__(self) -> str:
         return str(

@@ -1,7 +1,8 @@
-[tool.poetry]
+[project]
 name = "smartcadd"
 version = "0.1.0"
-description = ""
+description = "SmartCADD is an open-source virtual screening platform that combines deep learning, computer-aided drug design (CADD), and quantum mechanics methodologies within a user-friendly Python framework."
+requires-python = ">=3.10"
 authors = ["Eli Laird <ejlaird@smu.edu>"]
 license = "MIT"
 readme = "README.md"
@@ -17,13 +18,9 @@ openmm = "^0.2"
 mdanalysis = "^2.7.0"
 pybel = "^0.15.5"
 torch = "^2.2.2"
-
-
-[tool.poetry.group.dev.dependencies]
-pytest = "^8.1.1"
-sphinx = "^7.2.6"
-sphinx-rtd-theme = "^2.0.0"
+dgl = "==1.1.2"
+dgllife = "^0.2.1"
 
 [build-system]
-requires = ["poetry-core"]
-build-backend = "poetry.core.masonry.api"
+requires = [""]
+build-backend = ""

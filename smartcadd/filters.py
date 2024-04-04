@@ -95,7 +95,7 @@ class ADMETFilter(Filter):
         n_processes (int): number of processes to use for filtering
 
     Config:
-        save (bool): save filtered compounds to csv. Default is False
+        save_results (bool): save filtered compounds to csv. Default is False
 
     Returns:
         filtered_batch: list of filtered Compound objects based on ADMET PAINS patterns
@@ -110,10 +110,10 @@ class ADMETFilter(Filter):
             "alert_collection_path" in filter_config.keys()
         ), "alert_collection_path not found in filter_config"
 
-        if "save" in filter_config.keys():
-            self.save = filter_config["save"]
+        if "save_results" in filter_config.keys():
+            self.save_results = filter_config["save_results"]
         else:
-            self.save = False
+            self.save_results = False
 
         self._pains_patterns = self._init(
             alert_collection_path=filter_config["alert_collection_path"]
@@ -138,7 +138,7 @@ class ADMETFilter(Filter):
             compound for compound, keep in zip(batch, mask) if keep
         ]
 
-        if self.save:
+        if self.save_results:
             self.save(zip(batch, mask))
 
         return filtered_batch
@@ -216,7 +216,7 @@ class ModelFilter(Filter):
         threshold (float): threshold for filtering
 
     Config:
-        save (bool): save filtered compounds to csv. Default is False
+        save_results (bool): save filtered compounds to csv. Default is False
 
     Returns:
         filtered_batch: list of filtered Compound objects based on model
@@ -236,10 +236,10 @@ class ModelFilter(Filter):
         self.target = target
         self.threshold = threshold
 
-        if "save" in filter_config.keys():
-            self.save = filter_config["save"]
+        if "save_results" in filter_config.keys():
+            self.save_results = filter_config["save_results"]
         else:
-            self.save = False
+            self.save_results = False
 
         # load model weights
         try:
@@ -270,7 +270,7 @@ class ModelFilter(Filter):
             if predictions[idx] > self.threshold
         ]
 
-        if self.save:
+        if self.save_results:
             self.save(zip(batch, predictions))
 
         return filtered_batch
@@ -300,7 +300,7 @@ class ModelFilter(Filter):
             batch (list): list of Compound objects
 
         Config:
-            save (bool): save filtered compounds to csv. Default is False
+            save_results (bool): save filtered compounds to csv. Default is False
 
         Returns:
             list: list of prediction probabilities
@@ -321,7 +321,7 @@ class PharmacophoreFilter2D(Filter):
         pharmacophore_df (pd.DataFrame): dataframe containing 2D pharmacophore features
 
     Config:
-        save (bool): save filtered compounds to csv. Default is False
+        save_results (bool): save filtered compounds to csv. Default is False
 
     Returns:
         filtered_batch: list of filtered Compound objects based on 2D pharmacophore features
@@ -335,10 +335,10 @@ class PharmacophoreFilter2D(Filter):
     ):
         super().__init__(filter_config)
 
-        if "save" in filter_config.keys():
-            self.save = filter_config["save"]
+        if "save_results" in filter_config.keys():
+            self.save_results = filter_config["save_results"]
         else:
-            self.save = False
+            self.save_results = False
 
         self.template_dict = self._preprocess_templates(template_compounds)
         self.n_processes = n_processes
@@ -357,7 +357,7 @@ class PharmacophoreFilter2D(Filter):
         with Pool(self.n_processes) as pool:
             mask = pool.map(self._filter, batch)
 
-        if self.save:
+        if self.save_results:
             self.save(zip(batch, mask))
 
         filtered_batch = [
@@ -474,7 +474,7 @@ class PharmacophoreFilter3D(Filter):
         pharmacophore_df (pd.DataFrame): dataframe containing 3D pharmacophore features
 
     Config:
-        save (bool): save filtered compounds to csv. Default is False
+        save_results (bool): save filtered compounds to csv. Default is False
 
     Returns:
         filtered_batch: list of filtered Compound objects based on 3D pharmacophore features
@@ -488,10 +488,10 @@ class PharmacophoreFilter3D(Filter):
     ):
         super().__init__(filter_config)
 
-        if "save" in filter_config.keys():
-            self.save = filter_config["save"]
+        if "save_results" in filter_config.keys():
+            self.save_results = filter_config["save_results"]
         else:
-            self.save = False
+            self.save_results = False
 
         self.template_compounds = self._preprocess_templates(template_compounds)
         self.n_processes = n_processes
@@ -521,7 +521,7 @@ class PharmacophoreFilter3D(Filter):
         # flatten processed list
         processed = [item for sublist in processed for item in sublist]
 
-        if self.save:
+        if self.save_results:
             self.save(processed)
 
         # filtered_batch = [
@@ -801,7 +801,7 @@ class SminaDockingFilter(Filter):
         n_processes (int): number of processes to use for filtering
 
     Config:
-        save (bool): save filtered compounds to csv. Default is False
+        save_results (bool): save filtered compounds to csv. Default is False
         optimized_pdb_dir (str): path to optimized pdb files
         load_protein (bool): load protein file for docking. If False, fetch from RCSB
 
@@ -828,10 +828,10 @@ class SminaDockingFilter(Filter):
         else:
             self.protein_path = None
 
-        if "save" in filter_config.keys():
-            self.save = filter_config["save"]
+        if "save_results" in filter_config.keys():
+            self.save_results = filter_config["save_results"]
         else:
-            self.save = False
+            self.save_results = False
 
         if output_dir is None:
             self.output_dir = os.getcwd()
@@ -888,7 +888,7 @@ class SminaDockingFilter(Filter):
             
             compound.docked_pdb_path = os.path.join(self.output_dir, compound.id + "_docked.pdb")
         
-        if self.save:
+        if self.save_results:
             self.save(batch)
 
         # filtered_batch = [

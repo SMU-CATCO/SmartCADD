@@ -1,10 +1,12 @@
 name: smartcadd-test
 channels:
     - conda-forge
+    - dglteam
     - defaults
 dependencies:
     - python>=3.10
     - pip
+    - jupyter
     - pymol-open-source
     - h5py
     - openbabel
@@ -19,3 +21,7 @@ dependencies:
           - mdanalysis
           - pybel
           - torch
+          - torchdata
+          - dgl==1.1.2
+          - dgllife
+
