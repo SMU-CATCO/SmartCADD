@@ -18,10 +18,10 @@ from .data import Compound, SMARTS_Query
 from . import utils 
 
 class Filter:
-    def __init__(self, filter_config: Dict = None, output_dir: str = ".", n_processes: int = 1):
-        self.filter_config = filter_config
+    def __init__(self, output_dir: str = ".", n_processes: int = 1, save_results: bool = False):
         self.output_dir = output_dir
         self.n_processes = n_processes
+        self.save_results = save_results
 
         if not os.path.exists(output_dir):
             os.makedirs(self.output_dir, exist_ok=True)
@@ -56,8 +56,8 @@ class DummyFilter(Filter):
         filter_config (dict): configuration for filter
     """
 
-    def __init__(self, filter_config: Dict = None, output_dir: str = ".", n_processes: int = 1):
-        super().__init__(filter_config, output_dir, n_processes)
+    def __init__(self, output_dir: str = ".", n_processes: int = 1, save_results: bool = False):
+        super().__init__(output_dir, n_processes, save_results)
 
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
@@ -106,20 +106,12 @@ class ADMETFilter(Filter):
 
     """
 
-    def __init__(self, filter_config, output_dir: int = ".", n_processes: int = 1):
-        super().__init__(filter_config, output_dir, n_processes)
-
-        assert (
-            "alert_collection_path" in filter_config.keys()
-        ), "alert_collection_path not found in filter_config"
-
-        if "save_results" in filter_config.keys():
-            self.save_results = filter_config["save_results"]
-        else:
-            self.save_results = False
-
+    def __init__(self, alert_collection_path: str, output_dir: int = ".", n_processes: int = 1, save_results: bool = False):
+        super().__init__(output_dir, n_processes, save_results)
+        
+        self.alert_collection_path = alert_collection_path
         self._pains_patterns = self._init(
-            alert_collection_path=filter_config["alert_collection_path"]
+            alert_collection_path=self.alert_collection_path
         )
 
     def run(self, batch: List[Compound]) -> List[Compound]:
@@ -215,7 +207,8 @@ class ModelFilter(Filter):
     Filter compounds based on model prediction probabilities
 
     Args:
-        filter_config (dict): configuration for filter
+        model_wrapper (ModelWrapper) wrapper for the model
+        target (int): target class index to filter with
         threshold (float): threshold for filtering
 
     Config:
@@ -229,22 +222,17 @@ class ModelFilter(Filter):
     def __init__(
         self,
         model_wrapper: ModelWrapper,
-        filter_config: Dict = None,
         target: int = 0,
         threshold: float = 0.5,
         output_dir: str = ".",
         n_processes: int = 1,
+        save_results: bool = False
     ):
-        super().__init__(filter_config, output_dir, n_processes)
+        super().__init__(output_dir, n_processes, save_results)
 
         self.model_wrapper = model_wrapper
         self.target = target
         self.threshold = threshold
-
-        if "save_results" in filter_config.keys():
-            self.save_results = filter_config["save_results"]
-        else:
-            self.save_results = False
 
         # load model weights
         try:
@@ -297,6 +285,7 @@ class ModelFilter(Filter):
                 f.write(
                     f"{compound.smiles},{compound.id},{round(float(prediction), 3)}\n"
                 )
+
     def _predict(self, batch: List[Compound], target: int = 0) -> List[float]:
         """
         Predict on input batch using the model.
@@ -322,8 +311,7 @@ class PharmacophoreFilter2D(Filter):
     Filter compounds based on 2D pharmacophore features of a set of template compounds
 
     Args:
-        filter_config (dict): configuration for filter
-        pharmacophore_df (pd.DataFrame): dataframe containing 2D pharmacophore features
+        template_compounds (List[Compound]): list of template Compound objects to use for filtering
 
     Config:
         save_results (bool): save filtered compounds to csv. Default is False
@@ -335,16 +323,11 @@ class PharmacophoreFilter2D(Filter):
     def __init__(
         self,
         template_compounds: List[Compound],
-        filter_config: Dict = None,
         output_dir: str = ".",
         n_processes: int = 1,
+        save_results: bool = False
     ):
-        super().__init__(filter_config, output_dir, n_processes)
-
-        if "save_results" in filter_config.keys():
-            self.save_results = filter_config["save_results"]
-        else:
-            self.save_results = False
+        super().__init__(output_dir, n_processes, save_results)
 
         self.template_dict = self._preprocess_templates(template_compounds)
 
@@ -475,11 +458,7 @@ class PharmacophoreFilter3D(Filter):
     Filter compounds based on 3D pharmacophore features of a set of template compounds
 
     Args:
-        filter_config (dict): configuration for filter
-        pharmacophore_df (pd.DataFrame): dataframe containing 3D pharmacophore features
-
-    Config:
-        save_results (bool): save filtered compounds to csv. Default is False
+        template_copmounds (List[Compound]): list of template Compound objects to use for filtering
 
     Returns:
         filtered_batch: list of filtered Compound objects based on 3D pharmacophore features
@@ -488,16 +467,11 @@ class PharmacophoreFilter3D(Filter):
     def __init__(
         self,
         template_compounds: List[Compound],
-        filter_config: Dict = None,
         output_dir: str = ".",
         n_processes: int = 1,
+        save_results: bool = False
     ):
-        super().__init__(filter_config, output_dir, n_processes)
-
-        if "save_results" in filter_config.keys():
-            self.save_results = filter_config["save_results"]
-        else:
-            self.save_results = False
+        super().__init__(output_dir, n_processes, save_results)
 
         self.template_compounds = self._preprocess_templates(template_compounds)
 
@@ -802,7 +776,9 @@ class SminaDockingFilter(Filter):
     Filter compounds based on docking scores using Smina
 
     Args:
-        filter_config (dict): configuration for filter
+        protein_code (str): PDB code for target protein
+        optimized_pdb_dir (str): path to optimized pdb files
+        protein_path (str): path to protein PDB
         n_processes (int): number of processes to use for filtering
 
     Config:
@@ -817,29 +793,19 @@ class SminaDockingFilter(Filter):
 
     def __init__(
         self,
-        filter_config: Dict,
         protein_code: str,
+        optimized_pdb_dir: str,
+        protein_path: str = None,
         output_dir: str = ".",
         n_processes: int = 1,
+        save_results: bool = False,
     ):
-        super().__init__(filter_config, output_dir, n_processes)
-
-        assert (
-            "optimized_pdb_dir" in filter_config.keys()
-        ), "optimized_pdb_dir not found in filter_config"
-
-        if "protein_path" in filter_config.keys():
-            self.protein_path = filter_config["protein_path"]
-        else:
-            self.protein_path = None
-
-        if "save_results" in filter_config.keys():
-            self.save_results = filter_config["save_results"]
-        else:
-            self.save_results = False
+        super().__init__(output_dir, n_processes, save_results)
 
         self.protein_code = protein_code
-        self.optimized_pdb_dir = filter_config["optimized_pdb_dir"]
+        self.optimized_pdb_dir = optimized_pdb_dir
+        self.protein_path = protein_path
+
 
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
@@ -885,10 +851,6 @@ class SminaDockingFilter(Filter):
         
         if self.save_results:
             self.save(batch)
-
-        # filtered_batch = [
-        #     compound for compound, keep in zip(batch, mask) if keep
-        # ]
 
         return batch
 
