@@ -18,9 +18,13 @@ from .data import Compound, SMARTS_Query
 from . import utils 
 
 class Filter:
-    def __init__(self, filter_config: Dict = None, output_dir: str = None):
+    def __init__(self, filter_config: Dict = None, output_dir: str = ".", n_processes: int = 1):
         self.filter_config = filter_config
         self.output_dir = output_dir
+        self.n_processes = n_processes
+
+        if not os.path.exists(output_dir):
+            os.makedirs(self.output_dir, exist_ok=True)
 
     def __call__(self, batch: List[Compound]) -> List[Compound]:
         return self.run(batch)
@@ -52,8 +56,8 @@ class DummyFilter(Filter):
         filter_config (dict): configuration for filter
     """
 
-    def __init__(self, filter_config: Dict = None):
-        super().__init__(filter_config)
+    def __init__(self, filter_config: Dict = None, output_dir: str = ".", n_processes: int = 1):
+        super().__init__(filter_config, output_dir, n_processes)
 
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
@@ -83,7 +87,7 @@ class DummyFilter(Filter):
             [compound.to_dict() for compound in batch]
         )
 
-        df.to_csv(output_file, index=False)
+        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
 
 
 class ADMETFilter(Filter):
@@ -102,9 +106,8 @@ class ADMETFilter(Filter):
 
     """
 
-    def __init__(self, filter_config, n_processes=1):
-        super().__init__(filter_config)
-        self.n_processes = n_processes
+    def __init__(self, filter_config, output_dir: int = ".", n_processes: int = 1):
+        super().__init__(filter_config, output_dir, n_processes)
 
         assert (
             "alert_collection_path" in filter_config.keys()
@@ -162,7 +165,7 @@ class ADMETFilter(Filter):
             ]
         )
 
-        df.to_csv(output_file, index=False)
+        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
 
     def _init(self, alert_collection_path: str) -> List[SMARTS_Query]:
         """
@@ -229,8 +232,10 @@ class ModelFilter(Filter):
         filter_config: Dict = None,
         target: int = 0,
         threshold: float = 0.5,
+        output_dir: str = ".",
+        n_processes: int = 1,
     ):
-        super().__init__(filter_config)
+        super().__init__(filter_config, output_dir, n_processes)
 
         self.model_wrapper = model_wrapper
         self.target = target
@@ -286,7 +291,7 @@ class ModelFilter(Filter):
             output_file (str): output file path. Default is "model_filtered.csv"
         """
 
-        with open(output_file, "w") as f:
+        with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,Prediction\n")
             for compound, prediction in batch:
                 f.write(
@@ -331,9 +336,10 @@ class PharmacophoreFilter2D(Filter):
         self,
         template_compounds: List[Compound],
         filter_config: Dict = None,
+        output_dir: str = ".",
         n_processes: int = 1,
     ):
-        super().__init__(filter_config)
+        super().__init__(filter_config, output_dir, n_processes)
 
         if "save_results" in filter_config.keys():
             self.save_results = filter_config["save_results"]
@@ -341,7 +347,6 @@ class PharmacophoreFilter2D(Filter):
             self.save_results = False
 
         self.template_dict = self._preprocess_templates(template_compounds)
-        self.n_processes = n_processes
 
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
@@ -387,7 +392,7 @@ class PharmacophoreFilter2D(Filter):
             ]
         )
 
-        df.to_csv(output_file, index=False)
+        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
 
     def _filter(self, compound: Compound) -> Compound:
         """
@@ -484,9 +489,10 @@ class PharmacophoreFilter3D(Filter):
         self,
         template_compounds: List[Compound],
         filter_config: Dict = None,
+        output_dir: str = ".",
         n_processes: int = 1,
     ):
-        super().__init__(filter_config)
+        super().__init__(filter_config, output_dir, n_processes)
 
         if "save_results" in filter_config.keys():
             self.save_results = filter_config["save_results"]
@@ -494,7 +500,6 @@ class PharmacophoreFilter3D(Filter):
             self.save_results = False
 
         self.template_compounds = self._preprocess_templates(template_compounds)
-        self.n_processes = n_processes
 
         self.conformer_generator = Chem.AllChem.ETKDGv2()
         self.conformer_generator.numThreads = 0 # use all threads
@@ -545,7 +550,7 @@ class PharmacophoreFilter3D(Filter):
 
         df = pd.DataFrame(batch)
 
-        df.to_csv(output_file, index=False)
+        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
 
     def _filter(self, compound: Compound) -> Compound:
         """
@@ -814,10 +819,10 @@ class SminaDockingFilter(Filter):
         self,
         filter_config: Dict,
         protein_code: str,
-        output_dir: str = None,
+        output_dir: str = ".",
         n_processes: int = 1,
     ):
-        super().__init__(filter_config)
+        super().__init__(filter_config, output_dir, n_processes)
 
         assert (
             "optimized_pdb_dir" in filter_config.keys()
@@ -833,18 +838,8 @@ class SminaDockingFilter(Filter):
         else:
             self.save_results = False
 
-        if output_dir is None:
-            self.output_dir = os.getcwd()
-        else:
-            if os.path.exists(output_dir):
-                self.output_dir = output_dir
-            else:
-                os.makedirs(output_dir, exist_ok=True)
-                self.output_dir = output_dir
-
         self.protein_code = protein_code
         self.optimized_pdb_dir = filter_config["optimized_pdb_dir"]
-        self.n_processes = n_processes
 
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
@@ -917,7 +912,7 @@ class SminaDockingFilter(Filter):
             ]
         )
 
-        df.to_csv(output_file, index=False)
+        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
 
 
     def _load_and_preprocess_protein(
