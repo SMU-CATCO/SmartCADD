@@ -26,3 +26,6 @@ design_docs/
 
 # documentation site
 docs/_build
+
+# old code
+legacy

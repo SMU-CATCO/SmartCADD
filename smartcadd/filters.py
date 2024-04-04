@@ -15,7 +15,7 @@ from rdkit.Geometry import Point3D
 
 from .model_wrappers import ModelWrapper
 from .data import Compound, SMARTS_Query
-import utils 
+from . import utils 
 
 class Filter:
     def __init__(self, filter_config: Dict = None, output_dir: str = None):
@@ -994,7 +994,7 @@ class SminaDockingFilter(Filter):
 
         # convert to pdbqt
         subprocess.call(
-            f"obabel -ipdb {output_protein_path_clean} -opdbqt -O {self.protein_code + ".pdbqt"}",
+            f"obabel -ipdb {output_protein_path_clean} -opdbqt -O {self.protein_code + '.pdbqt'}",
             shell=True,
         )
 

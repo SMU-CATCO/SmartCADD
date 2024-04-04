@@ -13,6 +13,10 @@ rdkit = "^2023.9.5"
 deepchem = "^2.7.1"
 numpy = "^1.26.4"
 xtb = "^22.1"
+openmm = "^0.2"
+mdanalysis = "^2.7.0"
+pybel = "^0.15.5"
+torch = "^2.2.2"
 
 
 [tool.poetry.group.dev.dependencies]

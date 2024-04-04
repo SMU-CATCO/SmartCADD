@@ -21,18 +21,21 @@ conda activate smartcadd
 pip install poetry
 poetry install
 
-pip install -e
+# install conda-specific dependencies
+poetry run conda install h5py conda-forge::pymol-open-source conda-forge::openbabel conda-forge::pdbfixer
 ```
 
 ## Dependencies
 
--   PyMol: `conda install -c conda-forge -c schrodinger pymol-bundle`
+-   PyMol: `conda install -c conda-forge pymol-open-source`
 
-    -   If MaxOS: `pip install PyQt5`
+    -   Dependencies: `conda install -y h5py`
     -   [Other options]('https://pymol.org/support.html?#installation')
 
--   PDBFixer: `conda install conda-forge::pdbfixer`
+-   OpenBabel: `conda install -c conda-forge openbabel`
+-   PDBFixer: `conda install -c conda-forge pdbfixer`
 
 -   Openmm: `pip install openmm`
 -   MDAnalysis: `pip install MDAnalysis`
 -   pybel: `pip install pybel`
+-   PyTorch: `pip install torch`
