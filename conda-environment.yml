@@ -1,8 +1,21 @@
+name: smartcadd-test
 channels:
-  - conda-forge
-  - defaults
+    - conda-forge
+    - defaults
 dependencies:
-  - pymol-open-source
-  - h5py
-  - openbabel
-  - pdbfixer
+    - python>=3.10
+    - pip
+    - pymol-open-source
+    - h5py
+    - openbabel
+    - pdbfixer
+    - rdkit
+    - numpy
+    - pandas
+    - pip:
+          - deepchem
+          - xtb
+          - openmm
+          - mdanalysis
+          - pybel
+          - torch
