@@ -5,12 +5,15 @@
 ## Project Overview
 SmartCADD is an open-source platform designed to innovate in the field of drug discovery by integrating deep learning, computer-aided drug design (CADD), and quantum mechanics methodologies. Developed in a user-friendly Python framework, SmartCADD aims to provide researchers and developers with powerful tools for virtual screening and drug design.
 
-## Current Version: **0.1**
+## Current Version: **0.1.0**
 
 ### Version **0.01** Notes:
 
 -   Initial version
--   Basic data structure is pandas dataframe
+
+## Requirements
+- Python >=3.10
+- Conda
 
 ## Installation
 
@@ -21,25 +24,11 @@ cd SmartCADD
 conda install -n base conda-forge::mamba
 mamba env create -f conda-environment.yml 
 mamba activate smartcadd
+
+pip install -e .
 ```
 
 
-```markdown
-# SmartCADD
-
-
-
-## Installation Instructions
-```bash
-# Clone the repository
-git clone https://github.com/SMU-CATCO/SmartCADD.git
-
-# Navigate to the SmartCADD folder
-cd SmartCADD
-
-# Install using pip
-pip install -r requirements.txt
-```
 
 ## Usage Examples
 To get started with SmartCADD, you can run a simple virtual screening process:
