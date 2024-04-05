@@ -5,7 +5,7 @@ from .data import Compound
 
 
 class IterableDataset(object):
-    def __init__(self, root_dir: str, batch_size: int=1000):
+    def __init__(self, root_dir: str, batch_size: int = 1000):
         self.root_dir = root_dir
         self.batch_size = batch_size
         self.files = self._get_files(self.root_dir)

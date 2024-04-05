@@ -77,7 +77,6 @@ class AttentiveFPWrapper(ModelWrapper):
         return [p[target] for p in predictions]
 
     def featurize(self, batch: List[Compound]) -> Any:
-
         """
         Featurize input data using the model
         """

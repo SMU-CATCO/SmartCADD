@@ -15,10 +15,16 @@ from rdkit.Geometry import Point3D
 
 from .model_wrappers import ModelWrapper
 from .data import Compound, SMARTS_Query
-from . import utils 
+from . import utils
+
 
 class Filter:
-    def __init__(self, output_dir: str = None, n_processes: int = 1, save_results: bool = False):
+    def __init__(
+        self,
+        output_dir: str = None,
+        n_processes: int = 1,
+        save_results: bool = False,
+    ):
         self.output_dir = output_dir
         self.n_processes = n_processes
         self.save_results = save_results
@@ -34,7 +40,7 @@ class Filter:
 
     def __str__(self) -> str:
         return self.__class__.__name__
-    
+
     def run(self, batch: List[Compound]) -> List[Compound]:
         raise NotImplementedError(
             "This method should be implemented in the subclass."
@@ -59,7 +65,12 @@ class DummyFilter(Filter):
         filter_config (dict): configuration for filter
     """
 
-    def __init__(self, output_dir: str = None, n_processes: int = 1, save_results: bool = False):
+    def __init__(
+        self,
+        output_dir: str = None,
+        n_processes: int = 1,
+        save_results: bool = False,
+    ):
         super().__init__(output_dir, n_processes, save_results)
 
     def run(self, batch: List[Compound]) -> List[Compound]:
@@ -102,15 +113,21 @@ class ADMETFilter(Filter):
         output_dir (str): output directory for saving results
         n_processes (int): number of processes to use for filtering
         save_results (bool): save filtered compounds to csv. Default is False
-        
+
     Returns:
         filtered_batch: list of filtered Compound objects based on ADMET PAINS patterns
 
     """
 
-    def __init__(self, alert_collection_path: str, output_dir: int = ".", n_processes: int = 1, save_results: bool = False):
+    def __init__(
+        self,
+        alert_collection_path: str,
+        output_dir: int = ".",
+        n_processes: int = 1,
+        save_results: bool = False,
+    ):
         super().__init__(output_dir, n_processes, save_results)
-        
+
         self.alert_collection_path = alert_collection_path
         self._pains_patterns = self._init(
             alert_collection_path=self.alert_collection_path
@@ -152,10 +169,7 @@ class ADMETFilter(Filter):
         """
 
         df = pd.DataFrame.from_records(
-            [
-                compound.to_dict() | {"keep": keep}
-                for compound, keep in batch
-            ]
+            [compound.to_dict() | {"keep": keep} for compound, keep in batch]
         )
 
         # save to csv
@@ -232,7 +246,7 @@ class ModelFilter(Filter):
         threshold: float = 0.5,
         output_dir: str = None,
         n_processes: int = 1,
-        save_results: bool = False
+        save_results: bool = False,
     ):
         super().__init__(output_dir, n_processes, save_results)
 
@@ -246,7 +260,6 @@ class ModelFilter(Filter):
         except Exception as e:
             print(f"Error loading model weights: {e}")
             raise e
-
 
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
@@ -288,7 +301,11 @@ class ModelFilter(Filter):
         # make df
         df = pd.DataFrame.from_records(
             [
-                {"SMILES": compound.smiles, "ID": compound.id, "Prediction": round(float(prediction), 3)} 
+                {
+                    "SMILES": compound.smiles,
+                    "ID": compound.id,
+                    "Prediction": round(float(prediction), 3),
+                }
                 for compound, prediction in batch
             ]
         )
@@ -299,7 +316,6 @@ class ModelFilter(Filter):
             df.to_csv(save_path, index=False, mode="a")
         else:
             df.to_csv(save_path, index=False, mode="a", header=False)
-
 
     def _predict(self, batch: List[Compound], target: int = 0) -> List[float]:
         """
@@ -319,7 +335,7 @@ class ModelFilter(Filter):
         featurized_batch = self.model_wrapper.featurize(batch)
 
         return self.model_wrapper.predict(featurized_batch, self.target)
-    
+
 
 class PharmacophoreFilter2D(Filter):
     """
@@ -340,7 +356,7 @@ class PharmacophoreFilter2D(Filter):
         template_compounds: List[Compound],
         output_dir: str = None,
         n_processes: int = 1,
-        save_results: bool = False
+        save_results: bool = False,
     ):
         super().__init__(output_dir, n_processes, save_results)
 
@@ -383,10 +399,7 @@ class PharmacophoreFilter2D(Filter):
         """
 
         df = pd.DataFrame.from_records(
-            [
-                compound.to_dict() | {"keep": keep}
-                for compound, keep in batch
-            ]
+            [compound.to_dict() | {"keep": keep} for compound, keep in batch]
         )
 
         # save to csv
@@ -488,15 +501,19 @@ class PharmacophoreFilter3D(Filter):
         template_compounds: List[Compound],
         output_dir: str = None,
         n_processes: int = 1,
-        save_results: bool = False
+        save_results: bool = False,
     ):
         super().__init__(output_dir, n_processes, save_results)
 
-        self.template_compounds = self._preprocess_templates(template_compounds)
+        self.template_compounds = self._preprocess_templates(
+            template_compounds
+        )
 
         self.conformer_generator = Chem.AllChem.ETKDGv2()
-        self.conformer_generator.numThreads = 0 # use all threads
-        self.conformer_generator.useRandomCoords = True # use random starting coordinates
+        self.conformer_generator.numThreads = 0  # use all threads
+        self.conformer_generator.useRandomCoords = (
+            True  # use random starting coordinates
+        )
         self.conformer_generator.randomSeed = 42
 
     def run(self, batch: List[Compound]) -> List[Compound]:
@@ -515,7 +532,7 @@ class PharmacophoreFilter3D(Filter):
 
         # with Pool(self.n_processes) as pool:
         #     mask = pool.map(self._filter, batch)
-            
+
         # flatten processed list
         processed = [item for sublist in processed for item in sublist]
 
@@ -561,7 +578,7 @@ class PharmacophoreFilter3D(Filter):
             Compound: filtered compound
         """
         return NotImplementedError("Not implemented yet")
-    
+
     def _process_leads(self, compound: Compound) -> Dict:
         """
         Process lead compounds to extract 3D pharmacophore features
@@ -572,71 +589,125 @@ class PharmacophoreFilter3D(Filter):
         Returns:
             Dict: dictionary containing 3D pharmacophore features
         """
-        hydrogen_bonds, midpoints, align_coordinates = self._gather_coordinates(compound)
-        if hydrogen_bonds is None or midpoints is None or align_coordinates is None:
+        hydrogen_bonds, midpoints, align_coordinates = (
+            self._gather_coordinates(compound)
+        )
+        if (
+            hydrogen_bonds is None
+            or midpoints is None
+            or align_coordinates is None
+        ):
             return None
-        
+
         conformations = []
         for template in self.template_compounds:
 
             if len(midpoints) >= 2:
                 if len(align_coordinates) == 6:
-                    constrains_alignment = list(zip(align_coordinates, template.align_coordinates))
+                    constrains_alignment = list(
+                        zip(align_coordinates, template.align_coordinates)
+                    )
 
                     # generate conformers
-                    conformations = self._generate_conformers(compound, template.mol, constrains_alignment)
+                    conformations = self._generate_conformers(
+                        compound, template.mol, constrains_alignment
+                    )
                     for conformation in conformations:
                         idx, conf_mol, score = conformation
                         conf_hbs, conf_mid_pts, _ = self._get_poses(conf_mol)
-                        zero_mid_points = utils.find_zero_midpoints(midpoints, conf_mid_pts)
-                        tani = Chem.rdShapeHelpers.ShapeTanimotoDist(conf_mol, template.mol)
-                        prtr = Chem.rdShapeHelpers.ShapeProtrudeDist(conf_mol, template.mol)
+                        zero_mid_points = utils.find_zero_midpoints(
+                            midpoints, conf_mid_pts
+                        )
+                        tani = Chem.rdShapeHelpers.ShapeTanimotoDist(
+                            conf_mol, template.mol
+                        )
+                        prtr = Chem.rdShapeHelpers.ShapeProtrudeDist(
+                            conf_mol, template.mol
+                        )
                         if zero_mid_points is not None:
-                            template_acc_don_distances = utils.acc_don_dist(zero_mid_points, template.hydrogen_bonds)
-                            lead_acc_don_distances = utils.acc_don_dist(zero_mid_points, conf_hbs)
-                            acc_don_score = utils.scoring_function(template_acc_don_distances, lead_acc_don_distances, zero_mid_points)
-                            ring_scoring = utils.other_middle_points(template.midpoints, conf_mid_pts, zero_mid_points)
-                            total_score = [x + y for x, y in zip(acc_don_score, ring_scoring)] / (len(lead_acc_don_distances) + len(template_acc_don_distances))
-                            conformations.append({
-                                "lead_id": compound.id,
-                                "conformer_idx": idx,
-                                "template_id": template.id,
-                                "tani": tani,
-                                "prtr": prtr,
-                                "conformer_score": score,
-                                "score_0.1": total_score[0],
-                                "score_0.2": total_score[1],
-                                "score_0.3": total_score[2],
-                                "score_0.4": total_score[3],
-                                "score_0.5": total_score[4]
-                            })
+                            template_acc_don_distances = utils.acc_don_dist(
+                                zero_mid_points, template.hydrogen_bonds
+                            )
+                            lead_acc_don_distances = utils.acc_don_dist(
+                                zero_mid_points, conf_hbs
+                            )
+                            acc_don_score = utils.scoring_function(
+                                template_acc_don_distances,
+                                lead_acc_don_distances,
+                                zero_mid_points,
+                            )
+                            ring_scoring = utils.other_middle_points(
+                                template.midpoints,
+                                conf_mid_pts,
+                                zero_mid_points,
+                            )
+                            total_score = [
+                                x + y
+                                for x, y in zip(acc_don_score, ring_scoring)
+                            ] / (
+                                len(lead_acc_don_distances)
+                                + len(template_acc_don_distances)
+                            )
+                            conformations.append(
+                                {
+                                    "lead_id": compound.id,
+                                    "conformer_idx": idx,
+                                    "template_id": template.id,
+                                    "tani": tani,
+                                    "prtr": prtr,
+                                    "conformer_score": score,
+                                    "score_0.1": total_score[0],
+                                    "score_0.2": total_score[1],
+                                    "score_0.3": total_score[2],
+                                    "score_0.4": total_score[3],
+                                    "score_0.5": total_score[4],
+                                }
+                            )
             elif len(midpoints) == 1:
-                constrains_alignment = list(zip(align_coordinates, template.align_coordinates))
-                conformations = self._generate_conformers(compound, template.mol, constrains_alignment)
+                constrains_alignment = list(
+                    zip(align_coordinates, template.align_coordinates)
+                )
+                conformations = self._generate_conformers(
+                    compound, template.mol, constrains_alignment
+                )
                 for conformation in conformations:
                     idx, conf_mol, score = conformation
                     conf_hbs, conf_mid_pts, _ = self._get_poses(conf_mol)
-                    template_acc_don_distances = utils.acc_don_dist(midpoints, template.hydrogen_bonds)
-                    lead_acc_don_distances = utils.acc_don_dist(midpoints, conf_hbs)
-                    zero_mid_points = utils.find_zero_midpoints(midpoints, conf_mid_pts)
-                    acc_don_score = utils.scoring_function(template_acc_don_distances, lead_acc_don_distances, midpoints)
-                    conformations.append({
-                        "lead_id": compound.id,
-                        "conformer_idx": idx,
-                        "template_id": template.id,
-                        "tani": None,
-                        "prtr": None,
-                        "conformer_score": score,
-                        "score_0.1": acc_don_score[0],
-                        "score_0.2": acc_don_score[1],
-                        "score_0.3": acc_don_score[2],
-                        "score_0.4": acc_don_score[3],
-                        "score_0.5": acc_don_score[4]
-                    })
+                    template_acc_don_distances = utils.acc_don_dist(
+                        midpoints, template.hydrogen_bonds
+                    )
+                    lead_acc_don_distances = utils.acc_don_dist(
+                        midpoints, conf_hbs
+                    )
+                    zero_mid_points = utils.find_zero_midpoints(
+                        midpoints, conf_mid_pts
+                    )
+                    acc_don_score = utils.scoring_function(
+                        template_acc_don_distances,
+                        lead_acc_don_distances,
+                        midpoints,
+                    )
+                    conformations.append(
+                        {
+                            "lead_id": compound.id,
+                            "conformer_idx": idx,
+                            "template_id": template.id,
+                            "tani": None,
+                            "prtr": None,
+                            "conformer_score": score,
+                            "score_0.1": acc_don_score[0],
+                            "score_0.2": acc_don_score[1],
+                            "score_0.3": acc_don_score[2],
+                            "score_0.4": acc_don_score[3],
+                            "score_0.5": acc_don_score[4],
+                        }
+                    )
 
         return conformations
-                        
-    def _generate_conformers(self, compound: Compound, template: Compound, constraints: List[Tuple]) -> Compound:
+
+    def _generate_conformers(
+        self, compound: Compound, template: Compound, constraints: List[Tuple]
+    ) -> Compound:
         """
         Generate conformers for compound based on template
 
@@ -655,18 +726,25 @@ class PharmacophoreFilter3D(Filter):
         drug = Chem.AllChem.AssignBondOrdersFromTemplate(template.mol, drug)
 
         conf_num = []
-        num_conformers = Chem.AllChem.EmbedMultipleConfs(compound.mol, 100, self.conformer_generator)
+        num_conformers = Chem.AllChem.EmbedMultipleConfs(
+            compound.mol, 100, self.conformer_generator
+        )
         for i, conf in enumerate(num_conformers):
-            mol_with_conf = Chem.Mol(lead)  # Create a copy of the original molecule
+            mol_with_conf = Chem.Mol(
+                lead
+            )  # Create a copy of the original molecule
             mol_with_conf.RemoveAllConformers()  # Remove any existing conformers
-            mol_with_conf.AddConformer(lead.GetConformer(conf), assignId=True)  # Add the desired conformer
-            o3d = Chem.rdMolAlign.GetO3A(mol_with_conf, drug, constraintMap=constraints)
+            mol_with_conf.AddConformer(
+                lead.GetConformer(conf), assignId=True
+            )  # Add the desired conformer
+            o3d = Chem.rdMolAlign.GetO3A(
+                mol_with_conf, drug, constraintMap=constraints
+            )
             o3d.Align()
             score = o3d.Score()
-            conf_num.append([i, mol_with_conf,score])
+            conf_num.append([i, mol_with_conf, score])
         return conf_num
 
-    
     def _gather_coordinates(self, compound: Compound) -> Compound:
         """
         Gather 3D coordinates for compound
@@ -682,11 +760,12 @@ class PharmacophoreFilter3D(Filter):
         hydrogen_bonds = []
         try:
             pdb_mol = Chem.MolFromPDBFile(compound.pdb_path, removeHs=False)
-            pdb_mol = Chem.AllChem.AssignBondOrdersFromTemplate(compound.mol, pdb_mol)
+            pdb_mol = Chem.AllChem.AssignBondOrdersFromTemplate(
+                compound.mol, pdb_mol
+            )
         except Exception as e:
             print(f"Error processing Mol from pdb for {compound.id}: {e}")
             return None, None, None
-        
 
         try:
             # get hydrogen bond coordinates
@@ -701,13 +780,24 @@ class PharmacophoreFilter3D(Filter):
             midpoints = []
             for idx, system in enumerate(compound.ring_systems):
                 ring_indices = system
-                x_sum = sum(pdb_mol.GetConformer(0).GetAtomPosition(i).x for i in ring_indices)
-                y_sum = sum(pdb_mol.GetConformer(0).GetAtomPosition(i).y for i in ring_indices)
-                z_sum = sum(pdb_mol.GetConformer(0).GetAtomPosition(i).z for i in ring_indices)
+                x_sum = sum(
+                    pdb_mol.GetConformer(0).GetAtomPosition(i).x
+                    for i in ring_indices
+                )
+                y_sum = sum(
+                    pdb_mol.GetConformer(0).GetAtomPosition(i).y
+                    for i in ring_indices
+                )
+                z_sum = sum(
+                    pdb_mol.GetConformer(0).GetAtomPosition(i).z
+                    for i in ring_indices
+                )
 
-                middle_point = Point3D(x_sum / len(ring_indices),
-                        y_sum / len(ring_indices),
-                        z_sum / len(ring_indices))
+                middle_point = Point3D(
+                    x_sum / len(ring_indices),
+                    y_sum / len(ring_indices),
+                    z_sum / len(ring_indices),
+                )
                 midpoints.append(middle_point)
 
             # align coordinates
@@ -729,9 +819,9 @@ class PharmacophoreFilter3D(Filter):
         except Exception as e:
             print(f"Error processing coordinates for {compound.id}: {e}")
             return None, None, None
-        
+
         return hydrogen_bonds, midpoints, align_coordinates
-    
+
     def _process_templates(self, template_compounds: List[Compound]) -> Dict:
         """
         Process template compounds to extract 3D pharmacophore features
@@ -744,25 +834,27 @@ class PharmacophoreFilter3D(Filter):
         """
 
         for template in template_compounds:
-            hydrogen_bonds, midpoints, align_coordinates = self._gather_coordinates(template)
+            hydrogen_bonds, midpoints, align_coordinates = (
+                self._gather_coordinates(template)
+            )
             template.hydrogen_bonds = hydrogen_bonds
             template.midpoints = midpoints
             template.align_coordinates = align_coordinates
 
         return template_compounds
-    
+
     def _get_poses(self, mol: Chem.Mol):
-        
+
         # get hydrogen bond coordinates
         hydrogen_bonds = []
-        for index in range (mol.GetNumAtoms()):
+        for index in range(mol.GetNumAtoms()):
             atom = mol.GetAtomWithIdx(index)
             atom_symbol = atom.GetSymbol()
-            if atom_symbol == 'N' or atom_symbol == 'O':
+            if atom_symbol == "N" or atom_symbol == "O":
                 conf = mol.GetConformer(0)
                 coord = conf.GetAtomPosition(index)
                 hydrogen_bonds.append(coord)
-        
+
         # get ring systems
         ri = mol.GetRingInfo()
         systems = []
@@ -781,18 +873,24 @@ class PharmacophoreFilter3D(Filter):
         # get midpoints
         mid_points = []
         for index, ring_indices in enumerate(systems):
-            x_sum = sum(mol.GetConformer(0).GetAtomPosition(i).x for i in ring_indices)
-            y_sum = sum(mol.GetConformer(0).GetAtomPosition(i).y for i in ring_indices)
-            z_sum = sum(mol.GetConformer(0).GetAtomPosition(i).z for i in ring_indices)
+            x_sum = sum(
+                mol.GetConformer(0).GetAtomPosition(i).x for i in ring_indices
+            )
+            y_sum = sum(
+                mol.GetConformer(0).GetAtomPosition(i).y for i in ring_indices
+            )
+            z_sum = sum(
+                mol.GetConformer(0).GetAtomPosition(i).z for i in ring_indices
+            )
 
-            middle_point = Point3D(x_sum / len(ring_indices),
-                       y_sum / len(ring_indices),
-                       z_sum / len(ring_indices))
+            middle_point = Point3D(
+                x_sum / len(ring_indices),
+                y_sum / len(ring_indices),
+                z_sum / len(ring_indices),
+            )
             mid_points.append(middle_point)
 
         return hydrogen_bonds, mid_points, systems
-        
-         
 
 
 class SminaDockingFilter(Filter):
@@ -830,7 +928,6 @@ class SminaDockingFilter(Filter):
         self.optimized_pdb_dir = optimized_pdb_dir
         self.protein_path = protein_path
 
-
     def run(self, batch: List[Compound]) -> List[Compound]:
         """
         Filter compounds based on docking scores using Smina
@@ -846,23 +943,39 @@ class SminaDockingFilter(Filter):
         self._load_and_preprocess_protein()
 
         for compound in batch:
-            cmd.load(filename=self.protein_code + "_lig.mol2", format="mol2", object="Lig")
+            cmd.load(
+                filename=self.protein_code + "_lig.mol2",
+                format="mol2",
+                object="Lig",
+            )
             center, size = self._get_box(selection="Lig", extending=5.0)
-            
+
             smina_cmd = [
-                'smina',
-                '--receptor', self.protein_code + ".pdbqt",
-                '--ligand', compound.pdbqt_path,
-                '--center_x', str(center["center_x"]),
-                '--center_y', str(center["center_y"]),
-                '--center_z', str(center["center_z"]),
-                '--size_x', str(size["size_x"]),
-                '--size_y', str(size["size_y"]),
-                '--size_z', str(size["size_z"]),
-                '--num_modes', '1',
-                '--exhaustiveness', '8',
-                '-o', os.path.join(self.output_dir, compound.id + "_docked.pdb"),
-                '--scoring', 'vinardo'
+                "smina",
+                "--receptor",
+                self.protein_code + ".pdbqt",
+                "--ligand",
+                compound.pdbqt_path,
+                "--center_x",
+                str(center["center_x"]),
+                "--center_y",
+                str(center["center_y"]),
+                "--center_z",
+                str(center["center_z"]),
+                "--size_x",
+                str(size["size_x"]),
+                "--size_y",
+                str(size["size_y"]),
+                "--size_z",
+                str(size["size_z"]),
+                "--num_modes",
+                "1",
+                "--exhaustiveness",
+                "8",
+                "-o",
+                os.path.join(self.output_dir, compound.id + "_docked.pdb"),
+                "--scoring",
+                "vinardo",
             ]
 
             try:
@@ -870,9 +983,11 @@ class SminaDockingFilter(Filter):
             except Exception as e:
                 print(f"Error running smina for {compound.id}: {e}")
                 continue
-            
-            compound.docked_pdb_path = os.path.join(self.output_dir, compound.id + "_docked.pdb")
-        
+
+            compound.docked_pdb_path = os.path.join(
+                self.output_dir, compound.id + "_docked.pdb"
+            )
+
         if self.save_results:
             self.save(batch)
 
@@ -893,7 +1008,8 @@ class SminaDockingFilter(Filter):
 
         df = pd.DataFrame.from_records(
             [
-                compound.to_dict() | {"docked_pdb_file": compound.docked_pdb_path}
+                compound.to_dict()
+                | {"docked_pdb_file": compound.docked_pdb_path}
                 for compound in batch
             ]
         )
@@ -904,7 +1020,6 @@ class SminaDockingFilter(Filter):
             df.to_csv(save_path, index=False, mode="a")
         else:
             df.to_csv(save_path, index=False, mode="a", header=False)
-
 
     def _load_and_preprocess_protein(
         self, addHs_pH=7.4, renumber_residues=True
@@ -972,10 +1087,15 @@ class SminaDockingFilter(Filter):
                 print(f"Not possible to renumber residues with error: {e}")
 
         # clean ligand
-        mol = [m for m in pybel.readfile(filename=output_ligand_path, format="mol2")][0]
+        mol = [
+            m
+            for m in pybel.readfile(filename=output_ligand_path, format="mol2")
+        ][0]
         mol.addh()
-        
-        with pybel.Outputfile(filename=output_ligand_path, format="mol2", overwrite=True) as out:
+
+        with pybel.Outputfile(
+            filename=output_ligand_path, format="mol2", overwrite=True
+        ) as out:
             out.write(mol)
 
         # convert to pdbqt
@@ -983,5 +1103,3 @@ class SminaDockingFilter(Filter):
             f"obabel -ipdb {output_protein_path_clean} -opdbqt -O {self.protein_code + '.pdbqt'}",
             shell=True,
         )
-
-        

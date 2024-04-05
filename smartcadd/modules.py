@@ -180,11 +180,12 @@ class XTBOptimization(Module):
         module_config: Dict = None,
         output_dir: str = None,
         n_processes: int = 1,
+        save_results: bool = False,
     ):
         super().__init__(output_dir, n_processes, save_results)
 
-       self.from_file = from_file
-       self.pdb_dir = pdb_dir
+        self.from_file = from_file
+        self.pdb_dir = pdb_dir
 
         if self.from_file:
             assert self.pdb_dir is not None
@@ -341,7 +342,7 @@ class ExplainableAI(Module):
         self,
         model_wrapper: ModelWrapper,
         target: int,
-        num_hops: int = 1, 
+        num_hops: int = 1,
         coef: float = 20.0,
         node_min: int = 3,
         output_dir: str = None,
