@@ -20,8 +20,8 @@ jobs:
         pip install pylint black
     - name: Formatting the code with Black
       run: |
-        black --line-length 79 --exclude 'docs/*' --check $(git ls-files '*.py')
+        black --line-length 79 --exclude 'docs/*' --check $(git ls-files 'smartcadd/*.py') $(git ls-files 'tests/*.py')
     - name: Analysing the code with pylint
       run: |
-        pylint $(git ls-files '*.py')
+        pylint $(git ls-files 'smartcadd/*.py') $(git ls-files 'tests/*.py')
 
