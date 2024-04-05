@@ -98,12 +98,11 @@ class ADMETFilter(Filter):
     Filter compounds based on ADMET PAINS patterns
 
     Args:
-        filter_config (dict): configuration for filter
+        alert_collection_path (str): path to alert collection csv file
+        output_dir (str): output directory for saving results
         n_processes (int): number of processes to use for filtering
-
-    Config:
         save_results (bool): save filtered compounds to csv. Default is False
-
+        
     Returns:
         filtered_batch: list of filtered Compound objects based on ADMET PAINS patterns
 
@@ -156,11 +155,15 @@ class ADMETFilter(Filter):
             [
                 compound.to_dict() | {"keep": keep}
                 for compound, keep in batch
-                if keep
             ]
         )
 
-        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
+        # save to csv
+        save_path = os.path.join(self.output_dir, output_file)
+        if not os.path.isfile(save_path):
+            df.to_csv(save_path, index=False, mode="a")
+        else:
+            df.to_csv(save_path, index=False, mode="a", header=False)
 
     def _init(self, alert_collection_path: str) -> List[SMARTS_Query]:
         """
@@ -190,7 +193,7 @@ class ADMETFilter(Filter):
         """
 
         if compound.descriptors["status"] == "INVALID":
-            return None
+            return False
 
         for smarts_query in self._pains_patterns:
             if (
@@ -282,12 +285,21 @@ class ModelFilter(Filter):
             output_file (str): output file path. Default is "model_filtered.csv"
         """
 
-        with open(os.path.join(self.output_dir, output_file), "w") as f:
-            f.write("SMILES,ID,Prediction\n")
-            for compound, prediction in batch:
-                f.write(
-                    f"{compound.smiles},{compound.id},{round(float(prediction), 3)}\n"
-                )
+        # make df
+        df = pd.DataFrame.from_records(
+            [
+                {"SMILES": compound.smiles, "ID": compound.id, "Prediction": round(float(prediction), 3)} 
+                for compound, prediction in batch
+            ]
+        )
+
+        # save to csv
+        save_path = os.path.join(self.output_dir, output_file)
+        if not os.path.isfile(save_path):
+            df.to_csv(save_path, index=False, mode="a")
+        else:
+            df.to_csv(save_path, index=False, mode="a", header=False)
+
 
     def _predict(self, batch: List[Compound], target: int = 0) -> List[float]:
         """
@@ -374,11 +386,15 @@ class PharmacophoreFilter2D(Filter):
             [
                 compound.to_dict() | {"keep": keep}
                 for compound, keep in batch
-                if keep
             ]
         )
 
-        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
+        # save to csv
+        save_path = os.path.join(self.output_dir, output_file)
+        if not os.path.isfile(save_path):
+            df.to_csv(save_path, index=False, mode="a")
+        else:
+            df.to_csv(save_path, index=False, mode="a", header=False)
 
     def _filter(self, compound: Compound) -> Compound:
         """
@@ -527,7 +543,12 @@ class PharmacophoreFilter3D(Filter):
 
         df = pd.DataFrame(batch)
 
-        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
+        # save to csv
+        save_path = os.path.join(self.output_dir, output_file)
+        if not os.path.isfile(save_path):
+            df.to_csv(save_path, index=False, mode="a")
+        else:
+            df.to_csv(save_path, index=False, mode="a", header=False)
 
     def _filter(self, compound: Compound) -> Compound:
         """
@@ -877,7 +898,12 @@ class SminaDockingFilter(Filter):
             ]
         )
 
-        df.to_csv(os.path.join(self.output_dir, output_file), index=False)
+        # save to csv
+        save_path = os.path.join(self.output_dir, output_file)
+        if not os.path.isfile(save_path):
+            df.to_csv(save_path, index=False, mode="a")
+        else:
+            df.to_csv(save_path, index=False, mode="a", header=False)
 
 
     def _load_and_preprocess_protein(
