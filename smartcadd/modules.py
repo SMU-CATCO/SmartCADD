@@ -28,20 +28,15 @@ class Module:
         n_processes: int = 1,
         save_results: bool = False,
     ) -> None:
-        self.module_config = module_config
         self.output_dir = output_dir
         self.n_processes = n_processes
         self.save_results = save_results
 
-    def __call__(self) -> Any:
-        return NotImplementedError(
-            "This method should be implemented in the subclass."
-        )
+    def __call__(self, batch: List[Compound]) -> List[Compound]:
+        return self.run(batch)
 
     def __str__(self) -> str:
-        return NotImplementedError(
-            "This method should be implemented in the subclass."
-        )
+        return self.__class__.__name__
 
     def run(self, batch: List[Compound]) -> Any:
         return NotImplementedError(
@@ -61,12 +56,11 @@ class DummyModule(Module):
 
     def __init__(
         self,
-        module_config: Dict = None,
         output_dir: str = None,
         n_processes: int = 1,
         save_results: bool = False,
     ):
-        super().__init__(module_config, output_dir, n_processes)
+        super().__init__(output_dir, n_processes, save_results)
 
     def run(self, batch: List[Compound]) -> Any:
         """
@@ -120,27 +114,18 @@ class SMILETo3D(Module):
             os.makedirs(
                 os.path.join(self.output_dir, "3D_coordinates"), exist_ok=True
             )
-            save_dir = os.path.join(self.output_dir, "3D_coordinates")
+            self.save_dir = os.path.join(self.output_dir, "3D_coordinates")
         else:
             os.makedirs("3D_coordinates", exist_ok=True)
-            save_dir = os.path.join(".", "3D_coordinates")
-
-        def embed(compound):
-            _mol = AddHs(Mol(compound.mol))
-            AllChem.EmbedMolecule(_mol)
-            if self.save:
-                compound.pdb_path = os.path.join(
-                    save_dir, f"{compound.id}.pdb"
-                )
-                MolToPDBFile(_mol, compound.pdb_path)
-
-            if self.modify:
-                compound.mol = _mol
+            self.save_dir = os.path.join(".", "3D_coordinates")
 
         with Pool(self.n_processes) as pool:
-            pool.map(embed, batch)
+            transformed = pool.map(self.embed, batch)
 
-        return batch
+        if self.save_results:
+            self.save(transformed)
+
+        return transformed
 
     def save(self, batch: List[Compound], output_file: str = None) -> None:
         """
@@ -160,6 +145,17 @@ class SMILETo3D(Module):
                     f"{compound.smiles},{compound.id},{compound.pdb_path}\n"
                 )
 
+    def embed(self, compound):
+        _mol = AddHs(Mol(compound.mol))
+        AllChem.EmbedMolecule(_mol)
+        compound.pdb_path = os.path.join(self.save_dir, f"{compound.id}.pdb")
+        MolToPDBFile(_mol, compound.pdb_path)
+
+        if self.modify:
+            compound.mol = _mol
+
+        return compound
+
 
 class XTBOptimization(Module):
     """
@@ -177,7 +173,6 @@ class XTBOptimization(Module):
         self,
         from_file: bool = False,
         pdb_dir: str = None,
-        module_config: Dict = None,
         output_dir: str = None,
         n_processes: int = 1,
         save_results: bool = False,
@@ -237,6 +232,9 @@ class XTBOptimization(Module):
                 save_dir, f"{compound.id}_opt.pdb"
             )
 
+        if self.save_results:
+            self.save(batch)
+
         return batch
 
     def save(self, batch: List[Compound], output_file: str = None) -> None:
@@ -277,9 +275,12 @@ class PDBToPDBQT(Module):
         """
 
         with Pool(self.n_processes) as pool:
-            pool.map(self._process, batch)
+            transformed = pool.map(self._process, batch)
 
-        return batch
+        if self.save_results:
+            self.save(transformed)
+
+        return transformed
 
     def save(self, batch: List[Compound], output_file: str = None) -> None:
         """

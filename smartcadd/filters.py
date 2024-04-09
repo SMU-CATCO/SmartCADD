@@ -480,7 +480,7 @@ class PharmacophoreFilter2D(Filter):
             [compound.to_df() for compound in template_compounds]
         )
 
-        out_dict = template_df.min(axis=0).iloc[0].to_dict()
+        out_dict = template_df.min(axis=0).to_dict()
 
         return out_dict
 
