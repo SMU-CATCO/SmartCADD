@@ -76,17 +76,26 @@ filtered_results = admet_pipeline.run_filters()
             - writing to protobuf
         - distributed data loading
     
+    - _Optimization_
+        - improved multiprocessing for subprocess-based modules (ex: xtb and docking)
+    
     - _Additional Modules_:
         - New XAI Algorithms:
             - XInsight
             - GNNExplainer
             - PGExplainer
 
+    - _Improved command line argument handling_
+        - support cmd line arguments for filters/modules using CLIs (ex: xtb, docking, etc.)
+
 -  **Version 0.3.0**
     
     - _Generative Models_:
         - Graph GANs
         - Generative Flow Networks
+
+    - _Distributed pipelines_
+        - distribute work across multiple copies of a filter running on different machines/CPUs
 
 ## Contribution Guidelines
 We welcome contributions to the SmartCADD project! If you're looking to contribute, please start by reading our contribution guidelines in the `CONTRIBUTING.md` file. For any contributions, ensure you follow our code standards and submit a pull request for review.

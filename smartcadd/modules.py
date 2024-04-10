@@ -213,9 +213,7 @@ class XTBOptimization(Module):
                     print(f"Error converting {compound.id} to PDB: {e}")
                     continue
 
-            xtb_command = (
-                f"xtb {pdb_path} -P{self.n_processes} --opt --silent "
-            )
+            xtb_command = f"xtb {pdb_path} -P{self.n_processes} --opt --silent --ceasefiles"
             try:
                 subprocess.run(xtb_command, shell=True, check=True)
             except subprocess.CalledProcessError as e:
