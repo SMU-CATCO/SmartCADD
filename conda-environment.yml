@@ -14,9 +14,9 @@ dependencies:
     - rdkit
     - numpy
     - pandas
+    - xtb
     - pip:
           - deepchem
-          - xtb
           - openmm
           - mdanalysis
           - pybel

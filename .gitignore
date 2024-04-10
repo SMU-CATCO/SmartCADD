@@ -24,6 +24,14 @@ data/
 *.pdb
 *.pdbqt
 
+# xtb output
+*.xtboptok
+charges
+wbo
+xtbopt.log
+xtbrestart
+xtbtopo.mol
+
 # design_docs
 design_docs/
 

@@ -60,6 +60,34 @@ admet_pipeline = BasicCompoundPipeline(
 filtered_results = admet_pipeline.run_filters()
 ```
 
+## Roadmap
+
+-  **Version 0.1.0**: Initial release
+
+-  **Version 0.2.0**
+    
+    - _Additional filters_:
+        - Autodock Vina docking
+        - Default PyTorch model wrappers
+    
+    - _Improved data readers_
+        - TFRecord/protobuf support
+            - reading from protobuf
+            - writing to protobuf
+        - distributed data loading
+    
+    - _Additional Modules_:
+        - New XAI Algorithms:
+            - XInsight
+            - GNNExplainer
+            - PGExplainer
+
+-  **Version 0.3.0**
+    
+    - _Generative Models_:
+        - Graph GANs
+        - Generative Flow Networks
+
 ## Contribution Guidelines
 We welcome contributions to the SmartCADD project! If you're looking to contribute, please start by reading our contribution guidelines in the `CONTRIBUTING.md` file. For any contributions, ensure you follow our code standards and submit a pull request for review.
 
