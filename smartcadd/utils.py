@@ -1,4 +1,8 @@
 import numpy as np
+import rdkit
+from rdkit import Chem
+from rdkit.Chem.MolStandardize import rdMolStandardize
+
 
 
 # get the distance between any two pharmacophores
@@ -109,3 +113,15 @@ def other_middle_points(drug_mid_points, lead_mid_points, zero_mids):
                         break
             point_table.append(middle_point_collector)
     return point_table
+
+# Tautomer Canonicalization
+def reorderTautomers(mol):
+    enumerator = rdMolStandardize.TautomerEnumerator()
+    canon = enumerator.Canonicalize(mol)
+    csmi = Chem.MolToSmiles(canon)
+    res = [canon]
+    tauts = enumerator.Enumerate(mol)
+    smis = [Chem.MolToSmiles(x) for x in tauts]
+    stpl = sorted((x,y) for x,y in zip(smis,tauts) if x!=csmi)
+    res += [y for x,y in stpl]
+    return res
