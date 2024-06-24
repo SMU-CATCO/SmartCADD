@@ -1,9 +1,4 @@
 import numpy as np
-import rdkit
-from rdkit import Chem
-from rdkit.Chem.MolStandardize import rdMolStandardize
-from dimorphite_dl import DimorphiteDL
-
 
 
 # get the distance between any two pharmacophores
@@ -115,31 +110,10 @@ def other_middle_points(drug_mid_points, lead_mid_points, zero_mids):
             point_table.append(middle_point_collector)
     return point_table
 
-# Tautomer Canonicalization
-def reorderTautomers(mol):
-    enumerator = rdMolStandardize.TautomerEnumerator()
-    canon = enumerator.Canonicalize(mol)
-    csmi = Chem.MolToSmiles(canon)
-    res = [canon]
-    tauts = enumerator.Enumerate(mol)
-    smis = [Chem.MolToSmiles(x) for x in tauts]
-    stpl = sorted((x,y) for x,y in zip(smis,tauts) if x!=csmi)
-    res += [y for x,y in stpl]
-    return res
 
 
-# protonation modules
-def get_protonation_states(smile):
-    mol_list = []
-    dimorphite_dl = DimorphiteDL(
-    min_ph=4.5,
-    max_ph=8.0,
-    max_variants=128,
-    label_states=False,
-    pka_precision=1.0
-    )
-    result_smile_list = dimorphite_dl.protonate(smile)
-    for smi in result_smile_list:
-        mol = Chem.MolFromSmiles(smi)
-        mol_list.append(mol)
-    return mol_list
+
+
+
+    
+    
