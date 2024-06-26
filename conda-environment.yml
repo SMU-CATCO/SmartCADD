@@ -20,6 +20,7 @@ dependencies:
           - openmm
           - mdanalysis
           - pybel
+          - dimorphite_dl  
           - torch
           - torchdata
           - dgl==1.1.2

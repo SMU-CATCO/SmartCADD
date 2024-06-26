@@ -12,6 +12,10 @@ from random import shuffle
 from rdkit.Chem import AllChem, Mol, AddHs, MolToPDBFile
 from dgl.nn import SubgraphX
 import networkx as nx
+import rdkit
+from rdkit import Chem
+from rdkit.Chem.MolStandardize import rdMolStandardize
+from dimorphite_dl import DimorphiteDL
 
 from .data import Compound
 from .model_wrappers import ModelWrapper, AttentiveFP_DGLModelWrapper
@@ -321,6 +325,73 @@ class PDBToPDBQT(Module):
             return
 
         compound.pdbqt_path = pdbqt_path
+
+
+class Tautomers(Module):
+    """
+    Module for getting Tautomers for smiles
+    """
+
+    def __init__(
+        self,
+        output_dir: str = None,
+        n_processes: int = 1,
+        save_results: bool = False,
+    ):
+        super().__init__(output_dir, n_processes, save_results)
+
+    def run(self, batch: List[Compound]) -> Any:
+        """
+        Convert smiles files to Tautomer canonical representations(mols)
+        """
+        tautomers = []
+        for compound in batch:
+            enumerator = rdMolStandardize.TautomerEnumerator()
+            canon = enumerator.Canonicalize(compound.mol)
+            csmi = Chem.MolToSmiles(canon)
+            res = [canon]
+            tauts = enumerator.Enumerate(compound.mol)
+            smis = [Chem.MolToSmiles(x) for x in tauts]
+            stpl = sorted((x, y) for x, y in zip(smis, tauts) if x != csmi)
+            res += [y for x, y in stpl]
+            tautomers.append(res)
+
+        return tautomers
+
+
+class Protomers(Module):
+    """
+    Module for getting Protomers for smiles
+    """
+
+    def __init__(
+        self,
+        output_dir: str = None,
+        n_processes: int = 1,
+        save_results: bool = False,
+    ):
+        super().__init__(output_dir, n_processes, save_results)
+
+    def run(self, batch: List[Compound]) -> Any:
+        """
+        Convert smile files to protonation states (mols)
+        """
+
+        dimorphite_dl = DimorphiteDL(
+            min_ph=4.5,
+            max_ph=8.0,
+            max_variants=128,
+            label_states=False,
+            pka_precision=1.0,
+        )
+        protom = []
+        for compound in batch:
+            mol_list = []
+            result_smile_list = dimorphite_dl.protonate(compound.smiles)
+            mol_list = [Chem.MolFromSmiles(smi) for smi in result_smile_list]
+            protom.append(mol_list)
+
+        return protom
 
 
 class ExplainableAI(Module):

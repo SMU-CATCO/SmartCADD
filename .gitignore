@@ -2,7 +2,7 @@
 # python specific
 .ipynb_checkpoints/
 __pycache__/
-
+settings.json
 # playground for testing
 playground/
 
