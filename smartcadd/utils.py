@@ -81,14 +81,22 @@ def other_middle_points(drug_mid_points, lead_mid_points, zero_mids):
                 middle_point_collector += 2
             point_table.append(middle_point_collector)
 
-        elif len(other_middle_d_points) == 2 and len(other_middle_l_points) == 1:
+        elif (
+            len(other_middle_d_points) == 2 and len(other_middle_l_points) == 1
+        ):
             middle_point_collector = 0
             for other_D in other_middle_d_points:
-                if (other_D - value) <= other_middle_l_points[0] <= (other_D + value):
+                if (
+                    (other_D - value)
+                    <= other_middle_l_points[0]
+                    <= (other_D + value)
+                ):
                     middle_point_collector += 2
             point_table.append(middle_point_collector)
 
-        elif len(other_middle_d_points) == 2 and len(other_middle_l_points) == 2:
+        elif (
+            len(other_middle_d_points) == 2 and len(other_middle_l_points) == 2
+        ):
             middle_point_collector = 0
             for other_D in other_middle_d_points:
                 for other_L in other_middle_l_points:

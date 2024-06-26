@@ -43,10 +43,14 @@ class Module:
         return self.__class__.__name__
 
     def run(self, batch: List[Compound]) -> Any:
-        return NotImplementedError("This method should be implemented in the subclass.")
+        return NotImplementedError(
+            "This method should be implemented in the subclass."
+        )
 
     def save(self, batch: List[Compound], output_file: str = None) -> None:
-        return NotImplementedError("This method should be implemented in the subclass.")
+        return NotImplementedError(
+            "This method should be implemented in the subclass."
+        )
 
 
 class DummyModule(Module):
@@ -111,7 +115,9 @@ class SMILETo3D(Module):
         """
 
         if self.output_dir is not None:
-            os.makedirs(os.path.join(self.output_dir, "3D_coordinates"), exist_ok=True)
+            os.makedirs(
+                os.path.join(self.output_dir, "3D_coordinates"), exist_ok=True
+            )
             self.save_dir = os.path.join(self.output_dir, "3D_coordinates")
         else:
             os.makedirs("3D_coordinates", exist_ok=True)
@@ -139,7 +145,9 @@ class SMILETo3D(Module):
         with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDB_PATH\n")
             for compound in batch:
-                f.write(f"{compound.smiles},{compound.id},{compound.pdb_path}\n")
+                f.write(
+                    f"{compound.smiles},{compound.id},{compound.pdb_path}\n"
+                )
 
     def embed(self, compound):
         _mol = AddHs(Mol(compound.mol))
@@ -209,9 +217,7 @@ class XTBOptimization(Module):
                     print(f"Error converting {compound.id} to PDB: {e}")
                     continue
 
-            xtb_command = (
-                f"xtb {pdb_path} -P{self.n_processes} --opt --silent --ceasefiles"
-            )
+            xtb_command = f"xtb {pdb_path} -P{self.n_processes} --opt --silent --ceasefiles"
             try:
                 subprocess.run(xtb_command, shell=True, check=True)
             except subprocess.CalledProcessError as e:
@@ -226,7 +232,9 @@ class XTBOptimization(Module):
             except FileNotFoundError as e:
                 print(f"Error renaming xtbopt.pdb for {compound.id}: {e}")
 
-            compound.pdb_path = os.path.join(save_dir, f"{compound.id}_opt.pdb")
+            compound.pdb_path = os.path.join(
+                save_dir, f"{compound.id}_opt.pdb"
+            )
 
         if self.save_results:
             self.save(batch)
@@ -247,7 +255,9 @@ class XTBOptimization(Module):
         with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDB_PATH\n")
             for compound in batch:
-                f.write(f"{compound.smiles},{compound.id},{compound.pdb_path}\n")
+                f.write(
+                    f"{compound.smiles},{compound.id},{compound.pdb_path}\n"
+                )
 
 
 class PDBToPDBQT(Module):
@@ -290,7 +300,9 @@ class PDBToPDBQT(Module):
         with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDBQT_PATH\n")
             for compound in batch:
-                f.write(f"{compound.smiles},{compound.id},{compound.pdbqt_path}\n")
+                f.write(
+                    f"{compound.smiles},{compound.id},{compound.pdbqt_path}\n"
+                )
 
     def _process(self, compound: Compound) -> None:
         """
@@ -460,7 +472,8 @@ class ExplainableAI(Module):
 
         featurized_batch = self.model_wrapper.featurize(batch)
         dgl_batch = [
-            featurized_batch.X[i].to_dgl_graph() for i, _ in enumerate(featurized_batch)
+            featurized_batch.X[i].to_dgl_graph()
+            for i, _ in enumerate(featurized_batch)
         ]
 
         for i, g in enumerate(dgl_batch):
@@ -470,7 +483,9 @@ class ExplainableAI(Module):
                     g, g.ndata["x"], target_class=target
                 )
             except Exception as e:
-                print(f"Failed to explain compound: {batch[i].id} with error {e}")
+                print(
+                    f"Failed to explain compound: {batch[i].id} with error {e}"
+                )
                 batch[i].explanation = None
 
         return batch

@@ -26,19 +26,25 @@ class ModelWrapper:
         """
         Predict on input data using the model
         """
-        return NotImplementedError("This method should be implemented in the subclass")
+        return NotImplementedError(
+            "This method should be implemented in the subclass"
+        )
 
     def featurize(self, batch: List[Compound]) -> Any:
         """
         Featurize input data using the model
         """
-        return NotImplementedError("This method should be implemented in the subclass")
+        return NotImplementedError(
+            "This method should be implemented in the subclass"
+        )
 
     def load(self):
         """
         Load the model from checkpoint
         """
-        return NotImplementedError("This method should be implemented in the subclass")
+        return NotImplementedError(
+            "This method should be implemented in the subclass"
+        )
 
 
 class AttentiveFPWrapper(ModelWrapper):
