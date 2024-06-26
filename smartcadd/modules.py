@@ -10,8 +10,8 @@ import os
 from shutil import copy
 from random import shuffle
 from rdkit.Chem import AllChem, Mol, AddHs, MolToPDBFile
-# from dgl.nn import SubgraphX
-# import networkx as nx
+from dgl.nn import SubgraphX
+import networkx as nx
 import rdkit
 from rdkit import Chem
 from rdkit.Chem.MolStandardize import rdMolStandardize
@@ -43,14 +43,10 @@ class Module:
         return self.__class__.__name__
 
     def run(self, batch: List[Compound]) -> Any:
-        return NotImplementedError(
-            "This method should be implemented in the subclass."
-        )
+        return NotImplementedError("This method should be implemented in the subclass.")
 
     def save(self, batch: List[Compound], output_file: str = None) -> None:
-        return NotImplementedError(
-            "This method should be implemented in the subclass."
-        )
+        return NotImplementedError("This method should be implemented in the subclass.")
 
 
 class DummyModule(Module):
@@ -115,9 +111,7 @@ class SMILETo3D(Module):
         """
 
         if self.output_dir is not None:
-            os.makedirs(
-                os.path.join(self.output_dir, "3D_coordinates"), exist_ok=True
-            )
+            os.makedirs(os.path.join(self.output_dir, "3D_coordinates"), exist_ok=True)
             self.save_dir = os.path.join(self.output_dir, "3D_coordinates")
         else:
             os.makedirs("3D_coordinates", exist_ok=True)
@@ -145,9 +139,7 @@ class SMILETo3D(Module):
         with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDB_PATH\n")
             for compound in batch:
-                f.write(
-                    f"{compound.smiles},{compound.id},{compound.pdb_path}\n"
-                )
+                f.write(f"{compound.smiles},{compound.id},{compound.pdb_path}\n")
 
     def embed(self, compound):
         _mol = AddHs(Mol(compound.mol))
@@ -217,7 +209,9 @@ class XTBOptimization(Module):
                     print(f"Error converting {compound.id} to PDB: {e}")
                     continue
 
-            xtb_command = f"xtb {pdb_path} -P{self.n_processes} --opt --silent --ceasefiles"
+            xtb_command = (
+                f"xtb {pdb_path} -P{self.n_processes} --opt --silent --ceasefiles"
+            )
             try:
                 subprocess.run(xtb_command, shell=True, check=True)
             except subprocess.CalledProcessError as e:
@@ -232,9 +226,7 @@ class XTBOptimization(Module):
             except FileNotFoundError as e:
                 print(f"Error renaming xtbopt.pdb for {compound.id}: {e}")
 
-            compound.pdb_path = os.path.join(
-                save_dir, f"{compound.id}_opt.pdb"
-            )
+            compound.pdb_path = os.path.join(save_dir, f"{compound.id}_opt.pdb")
 
         if self.save_results:
             self.save(batch)
@@ -255,9 +247,7 @@ class XTBOptimization(Module):
         with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDB_PATH\n")
             for compound in batch:
-                f.write(
-                    f"{compound.smiles},{compound.id},{compound.pdb_path}\n"
-                )
+                f.write(f"{compound.smiles},{compound.id},{compound.pdb_path}\n")
 
 
 class PDBToPDBQT(Module):
@@ -300,9 +290,7 @@ class PDBToPDBQT(Module):
         with open(os.path.join(self.output_dir, output_file), "w") as f:
             f.write("SMILES,ID,PDBQT_PATH\n")
             for compound in batch:
-                f.write(
-                    f"{compound.smiles},{compound.id},{compound.pdbqt_path}\n"
-                )
+                f.write(f"{compound.smiles},{compound.id},{compound.pdbqt_path}\n")
 
     def _process(self, compound: Compound) -> None:
         """
@@ -326,7 +314,7 @@ class PDBToPDBQT(Module):
 
         compound.pdbqt_path = pdbqt_path
 
-        
+
 class Tautomers(Module):
     """
     Module for getting Tautomers for smiles
@@ -352,12 +340,13 @@ class Tautomers(Module):
             res = [canon]
             tauts = enumerator.Enumerate(compound.mol)
             smis = [Chem.MolToSmiles(x) for x in tauts]
-            stpl = sorted((x,y) for x,y in zip(smis,tauts) if x!=csmi)
-            res += [y for x,y in stpl]
+            stpl = sorted((x, y) for x, y in zip(smis, tauts) if x != csmi)
+            res += [y for x, y in stpl]
             tautomers.append(res)
+
         return tautomers
-        
-        
+
+
 class Protomers(Module):
     """
     Module for getting Protomers for smiles
@@ -375,13 +364,13 @@ class Protomers(Module):
         """
         Convert smile files to protonation states (mols)
         """
-        
+
         dimorphite_dl = DimorphiteDL(
-        min_ph=4.5,
-        max_ph=8.0,
-        max_variants=128,
-        label_states=False,
-        pka_precision=1.0
+            min_ph=4.5,
+            max_ph=8.0,
+            max_variants=128,
+            label_states=False,
+            pka_precision=1.0,
         )
         protom = []
         for compound in batch:
@@ -389,102 +378,99 @@ class Protomers(Module):
             result_smile_list = dimorphite_dl.protonate(compound.smiles)
             mol_list = [Chem.MolFromSmiles(smi) for smi in result_smile_list]
             protom.append(mol_list)
-            
+
         return protom
 
 
-# class ExplainableAI(Module):
-#     """
-#     Module for generating explanations for a batch of Compounds
+class ExplainableAI(Module):
+    """
+    Module for generating explanations for a batch of Compounds
 
-#     Args:
-#         model_wrapper (ModelWrapper): ModelWrapper object
-#         target (int): target class to explain
-#         num_hops (int): number of n-hop neighborhoods to use for SubgraphX
-#         coef (float): hyperparameter for exploration-exploitation tradeoff. Higher = more exploration. Default = 20.0
-#         node_min (int): minimum number of nodes to include in explanation subgraph
-#         output_dir (str): output directory
-#         n_processes (int): number of processes to use
-#         save_results (bool): save results. Default is False.s
+    Args:
+        model_wrapper (ModelWrapper): ModelWrapper object
+        target (int): target class to explain
+        num_hops (int): number of n-hop neighborhoods to use for SubgraphX
+        coef (float): hyperparameter for exploration-exploitation tradeoff. Higher = more exploration. Default = 20.0
+        node_min (int): minimum number of nodes to include in explanation subgraph
+        output_dir (str): output directory
+        n_processes (int): number of processes to use
+        save_results (bool): save results. Default is False.s
 
-#     """
+    """
 
-#     def __init__(
-#         self,
-#         model_wrapper: ModelWrapper,
-#         target: int,
-#         num_hops: int = 1,
-#         coef: float = 20.0,
-#         node_min: int = 3,
-#         output_dir: str = None,
-#         n_processes: int = 1,
-#         save_results: bool = False,
-#     ):
-#         super().__init__(output_dir, n_processes, save_results)
+    def __init__(
+        self,
+        model_wrapper: ModelWrapper,
+        target: int,
+        num_hops: int = 1,
+        coef: float = 20.0,
+        node_min: int = 3,
+        output_dir: str = None,
+        n_processes: int = 1,
+        save_results: bool = False,
+    ):
+        super().__init__(output_dir, n_processes, save_results)
 
-#         self.model_wrapper = model_wrapper
-#         self.target = target
-#         self.num_hops = num_hops
-#         self.coef = coef
-#         self.node_min = node_min
+        self.model_wrapper = model_wrapper
+        self.target = target
+        self.num_hops = num_hops
+        self.coef = coef
+        self.node_min = node_min
 
-#     def run(self, batch: List[Compound]) -> Any:
-#         """
-#         Generate explanations for a batch of Compounds
-#         """
+    def run(self, batch: List[Compound]) -> Any:
+        """
+        Generate explanations for a batch of Compounds
+        """
 
-#         subgraph = SubgraphX(
-#             self.model_wrapper,
-#             num_hops=self.num_hops,
-#             coef=self.coef,
-#             node_min=self.node_min,
-#             log=False,
-#         )
+        subgraph = SubgraphX(
+            self.model_wrapper,
+            num_hops=self.num_hops,
+            coef=self.coef,
+            node_min=self.node_min,
+            log=False,
+        )
 
-#         explained_batch = self._explain(subgraph, batch, target=self.target)
+        explained_batch = self._explain(subgraph, batch, target=self.target)
 
-#         if self.save:
-#             self.save(explained_batch)
+        if self.save:
+            self.save(explained_batch)
 
-#         return explained_batch
+        return explained_batch
 
-#     def save(self, batch: List[Compound], output_file: str = None) -> None:
+    def save(self, batch: List[Compound], output_file: str = None) -> None:
 
-#         if output_file is None:
-#             output_file = "explanations.csv"
+        if output_file is None:
+            output_file = "explanations.csv"
 
-#         with open(os.path.join(self.output_dir, output_file), "w") as f:
-#             f.write("ID,EXPLANATION\n")
-#             for compound in batch:
-#                 if compound is None:
-#                     explanation = "NA"
-#                 else:
-#                     explanation = compound.explanation
-#                 f.write(f"{compound.id},{compound.explanation}\n")
+        with open(os.path.join(self.output_dir, output_file), "w") as f:
+            f.write("ID,EXPLANATION\n")
+            for compound in batch:
+                if compound is None:
+                    explanation = "NA"
+                else:
+                    explanation = compound.explanation
+                f.write(f"{compound.id},{compound.explanation}\n")
 
-#     def _explain(
-#         self, explainer: SubgraphX, batch: List[Compound], target: int = 0
-#     ) -> Any:
-#         """
-#         Generate explanations for a batch of Compounds
-#         """
+    def _explain(
+        self, explainer: SubgraphX, batch: List[Compound], target: int = 0
+    ) -> Any:
+        """
+        Generate explanations for a batch of Compounds
+        """
 
-#         featurized_batch = self.model_wrapper.featurize(batch)
-#         dgl_batch = [
-#             featurized_batch.X[i].to_dgl_graph()
-#             for i, _ in enumerate(featurized_batch)
-#         ]
+        featurized_batch = self.model_wrapper.featurize(batch)
+        dgl_batch = [
+            featurized_batch.X[i].to_dgl_graph() for i, _ in enumerate(featurized_batch)
+        ]
 
-#         for i, g in enumerate(dgl_batch):
+        for i, g in enumerate(dgl_batch):
 
-#             try:
-#                 batch[i].explanation = explainer.explain_graph(
-#                     g, g.ndata["x"], target_class=target
-#                 )
-#             except Exception as e:
-#                 print(
-#                     f"Failed to explain compound: {batch[i].id} with error {e}"
-#                 )
-#                 batch[i].explanation = None
+            try:
+                batch[i].explanation = explainer.explain_graph(
+                    g, g.ndata["x"], target_class=target
+                )
+            except Exception as e:
+                print(f"Failed to explain compound: {batch[i].id} with error {e}")
+                batch[i].explanation = None
 
-#         return batch
+        return batch
