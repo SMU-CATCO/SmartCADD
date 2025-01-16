@@ -21,9 +21,8 @@ SmartCADD is an open-source platform designed to innovate in the field of drug d
 git clone git@github.com:SMU-CATCO/SmartCADD.git
 cd SmartCADD
 
-conda install -n base conda-forge::mamba
-mamba env create -f conda-environment.yml 
-mamba activate smartcadd
+conda env create -f conda-environment.yml 
+conda activate smartcadd
 
 pip install -e .
 ```
